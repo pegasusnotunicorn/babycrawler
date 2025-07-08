@@ -104,7 +104,14 @@ pub struct Card {
     pub color: u32,
 }
 
+const CARD_CONSTRUCTORS: &[fn() -> Card] = &[Card::move_card, Card::rotate_card];
+
 impl Card {
+    pub fn random() -> Self {
+        let index = (rand() as usize) % CARD_CONSTRUCTORS.len();
+        (CARD_CONSTRUCTORS[index])()
+    }
+
     pub fn rotate_card() -> Self {
         Self {
             id: rand(),

@@ -1,6 +1,8 @@
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 
+use crate::{ constants::{ FLASH_SPEED, FLOOR_COLOR, WALL_COLOR }, util::lerp_color };
+
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Tile {
     pub grid_x: usize,
@@ -45,21 +47,6 @@ impl Tile {
         }
     }
 
-    pub fn draw_highlighted(
-        &self,
-        absolute_x: i32,
-        absolute_y: i32,
-        tile_size: u32,
-        hovered: bool,
-        frame: f64
-    ) {
-        let t = (frame * 0.2).sin() * 0.5 + 0.5;
-        let alpha = (t * 255.0) as u32;
-        let flash_color = (0xff << 24) | (0xff << 16) | (0xff << 8) | alpha;
-
-        self.draw_at_absolute(flash_color, absolute_x, absolute_y, tile_size, hovered);
-    }
-
     pub fn rotate_clockwise(&mut self, times: usize) {
         use Direction::*;
         self.entrances = self.entrances
@@ -85,112 +72,73 @@ impl Tile {
 
     pub fn draw_at_absolute(
         &self,
-        base_color: u32,
         absolute_x: i32,
         absolute_y: i32,
         tile_size: u32,
-        hovered: bool
+        should_highlight: bool,
+        frame: f64
     ) {
-        let color = if hovered { 0xffff00ff } else { 0xffffffff };
-        let wall_width = 1;
-        let segment = (tile_size / 3) as i32;
-        let i32_tile_size = tile_size as i32;
+        let wall_width = 5 as i32;
+        let inner_size = tile_size.saturating_sub((wall_width as u32) * 2);
+        let inner_x = absolute_x + (wall_width as i32);
+        let inner_y = absolute_y + (wall_width as i32);
+        let ts = tile_size as i32;
 
-        // Draw background
-        rect!(x = absolute_x, y = absolute_y, w = tile_size, h = tile_size, color = base_color);
-
-        // UP wall
-        if self.entrances.contains(&Direction::Up) {
-            path!(
-                start = (absolute_x, absolute_y),
-                end = (absolute_x + segment, absolute_y),
-                size = wall_width,
-                color = color
-            );
-            path!(
-                start = (absolute_x + i32_tile_size - segment, absolute_y),
-                end = (absolute_x + i32_tile_size, absolute_y),
-                size = wall_width,
-                color = color
-            );
+        let t = (frame * FLASH_SPEED).sin() * 0.5 + 0.5;
+        let wall_color = if should_highlight {
+            lerp_color(0xffffffff, WALL_COLOR, t)
         } else {
-            path!(
-                start = (absolute_x, absolute_y),
-                end = (absolute_x + i32_tile_size, absolute_y),
-                size = wall_width,
-                color = color
-            );
-        }
+            WALL_COLOR
+        };
 
-        // DOWN wall
-        let y = absolute_y + i32_tile_size - wall_width;
-        if self.entrances.contains(&Direction::Down) {
-            path!(
-                start = (absolute_x, y),
-                end = (absolute_x + segment, y),
-                size = wall_width,
-                color = color
-            );
-            path!(
-                start = (absolute_x + i32_tile_size - segment, y),
-                end = (absolute_x + i32_tile_size, y),
-                size = wall_width,
-                color = color
-            );
-        } else {
-            path!(
-                start = (absolute_x, y),
-                end = (absolute_x + i32_tile_size, y),
-                size = wall_width,
-                color = color
-            );
-        }
+        // 🔳 Step 1: Draw outer border walls as a big rect
+        rect!(x = absolute_x, y = absolute_y, w = tile_size, h = tile_size, color = wall_color);
 
-        // LEFT wall
-        if self.entrances.contains(&Direction::Left) {
-            path!(
-                start = (absolute_x, absolute_y),
-                end = (absolute_x, absolute_y + segment),
-                size = wall_width,
-                color = color
-            );
-            path!(
-                start = (absolute_x, absolute_y + i32_tile_size - segment),
-                end = (absolute_x, absolute_y + i32_tile_size),
-                size = wall_width,
-                color = color
-            );
-        } else {
-            path!(
-                start = (absolute_x, absolute_y),
-                end = (absolute_x, absolute_y + i32_tile_size),
-                size = wall_width,
-                color = color
-            );
-        }
+        // 🟥 Step 2: Draw inner background as floor
+        rect!(x = inner_x, y = inner_y, w = inner_size, h = inner_size, color = FLOOR_COLOR);
 
-        // RIGHT wall
-        let x = absolute_x + i32_tile_size - wall_width;
-        if self.entrances.contains(&Direction::Right) {
-            path!(
-                start = (x, absolute_y),
-                end = (x, absolute_y + segment),
-                size = wall_width,
-                color = color
-            );
-            path!(
-                start = (x, absolute_y + i32_tile_size - segment),
-                end = (x, absolute_y + i32_tile_size),
-                size = wall_width,
-                color = color
-            );
-        } else {
-            path!(
-                start = (x, absolute_y),
-                end = (x, absolute_y + i32_tile_size),
-                size = wall_width,
-                color = color
-            );
+        // 🔲 Step 3: Draw gaps in the walls (entrances) as small rects "cutting through" walls
+        let seg = ts / 3;
+
+        for dir in &self.entrances {
+            match dir {
+                Direction::Up => {
+                    rect!(
+                        x = absolute_x + seg,
+                        y = absolute_y,
+                        w = ts - seg * 2,
+                        h = wall_width,
+                        color = FLOOR_COLOR
+                    );
+                }
+                Direction::Down => {
+                    rect!(
+                        x = absolute_x + seg,
+                        y = absolute_y + ts - wall_width,
+                        w = ts - seg * 2,
+                        h = wall_width,
+                        color = FLOOR_COLOR
+                    );
+                }
+                Direction::Left => {
+                    rect!(
+                        x = absolute_x,
+                        y = absolute_y + seg,
+                        w = wall_width,
+                        h = ts - seg * 2,
+                        color = FLOOR_COLOR
+                    );
+                }
+                Direction::Right => {
+                    rect!(
+                        x = absolute_x + ts - wall_width,
+                        y = absolute_y + seg,
+                        w = wall_width,
+                        h = ts - seg * 2,
+                        color = FLOOR_COLOR
+                    );
+                }
+            }
         }
     }
 }

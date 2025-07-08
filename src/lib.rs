@@ -52,7 +52,7 @@ impl GameState {
         ];
         for player in &mut players {
             for _ in 0..HAND_SIZE {
-                player.hand.push(Card::move_card());
+                player.hand.push(Card::random());
             }
         }
 
@@ -66,30 +66,36 @@ impl GameState {
     }
 
     pub fn update(&mut self) {
+        clear(GAME_BG_COLOR);
         self.frame += 1;
 
         let pointer = mouse::screen();
         let pointer_xy = (pointer.x, pointer.y);
-        let offset_x = 0;
         let canvas_width = bounds::canvas().w();
+        let tile_size = canvas_width / (MAP_SIZE as u32);
+        let offset_x = canvas_width / 2 - (tile_size * (MAP_SIZE as u32)) / 2;
+        let offset_y = 0;
 
-        handle_input(self, &pointer, pointer_xy, TILE_SIZE, offset_x);
-        draw_board(self, self.frame as f64, pointer, pointer_xy, TILE_SIZE, offset_x);
+        handle_input(self, &pointer, pointer_xy, tile_size, offset_x);
+        draw_board(self, self.frame as f64, pointer, pointer_xy, tile_size, offset_x, offset_y);
 
         let selected = self.selected_card.clone();
 
         draw_hand(
             &self.players[self.current_turn].hand,
-            &selected, // ✅ now it's not borrowing from `self`
-            pointer_xy,
-            TILE_SIZE,
-            canvas_width,
+            &selected,
+            tile_size,
+            self.frame as f64,
             |card| {
-                self.selected_card = Some(card.clone()); // ✅ now it's allowed
+                if self.selected_card.as_ref() == Some(card) {
+                    self.selected_card = None; // deselect
+                } else {
+                    self.selected_card = Some(card.clone()); // select
+                }
             }
         );
 
-        draw_turn_label(self.current_turn);
+        draw_turn_label(self.current_turn, tile_size);
         fs::write("state", self).ok();
     }
 }

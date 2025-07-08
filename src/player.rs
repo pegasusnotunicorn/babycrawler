@@ -32,12 +32,12 @@ impl Player {
         self.hand.push(card);
     }
 
-    pub fn draw(&self, tile_size: u32, offset_x: u32) {
+    pub fn draw(&self, tile_size: u32, offset_x: u32, offset_y: u32) {
         let (gx, gy) = self.position;
         let diameter = tile_size / 2;
         let radius = diameter / 2;
         let center_x = offset_x + (gx as u32) * tile_size + tile_size / 2 - radius;
-        let center_y = (gy as u32) * tile_size + tile_size / 2 - radius;
+        let center_y = offset_y + (gy as u32) * tile_size + tile_size / 2 - radius;
         let color = match self.id {
             PlayerId::Player1 => PLAYER_1_COLOR,
             PlayerId::Player2 => PLAYER_2_COLOR,

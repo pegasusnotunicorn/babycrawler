@@ -8,13 +8,14 @@ pub fn draw_board(
     pointer: mouse::ScreenMouse,
     pointer_xy: (i32, i32),
     tile_size: u32,
-    offset_x: u32
+    offset_x: u32,
+    offset_y: u32
 ) {
     let tile_positions: Vec<(usize, u32, u32)> = state.tiles
         .iter()
         .map(|tile| {
             let tx = offset_x + (tile.grid_x as u32) * tile_size;
-            let ty = (tile.grid_y as u32) * tile_size;
+            let ty = offset_y + (tile.grid_y as u32) * tile_size;
             (tile.grid_y * MAP_SIZE + tile.grid_x, tx, ty)
         })
         .collect();
@@ -48,11 +49,7 @@ pub fn draw_board(
             continue;
         }
 
-        if should_highlight {
-            tile.draw_highlighted(*tx as i32, *ty as i32, tile_size, false, frame);
-        } else {
-            tile.draw_at_absolute(0x444444ff, *tx as i32, *ty as i32, tile_size, false);
-        }
+        tile.draw_at_absolute(*tx as i32, *ty as i32, tile_size, should_highlight, frame);
     }
 
     // Perform mutable action safely after loop
@@ -64,16 +61,11 @@ pub fn draw_board(
         let (_, tx, ty) = tile_positions[index];
         let tile = &state.tiles[index];
         let should_highlight = highlight_tiles.contains(&index);
-
-        if should_highlight {
-            tile.draw_highlighted(tx as i32, ty as i32, tile_size, true, frame);
-        } else {
-            tile.draw_at_absolute(0x444444ff, tx as i32, ty as i32, tile_size, true);
-        }
+        tile.draw_at_absolute(tx as i32, ty as i32, tile_size, should_highlight, frame);
     }
 
     // Draw players
     for (_i, player) in state.players.iter().enumerate() {
-        player.draw(tile_size, offset_x);
+        player.draw(tile_size, offset_x, offset_y);
     }
 }

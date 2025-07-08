@@ -1,11 +1,11 @@
 name = "baby-crawler-network"
-version = "0.1.0"
-description = "An awesome game made in Turbo!"
-authors = ["Anonymous"]
+version = "1.0.0"
+description = "Help your baby escape from the dungeon!"
+authors = ["1min", "Pegasus Games"]
 
 [canvas]
-width = 256
-height = 144
+width = 720
+height = 1280
 
 [turbo-os]
 api-url = "https://os.turbo.computer"
