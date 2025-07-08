@@ -5,7 +5,7 @@ use turbo::*;
 
 pub fn draw_hand(
     hand: &[Card],
-    selected_card: &Option<Card>,
+    selected_cards: &[Card],
     tile_size: u32,
     frame: f64,
     mut on_card_click: impl FnMut(&Card)
@@ -35,7 +35,7 @@ pub fn draw_hand(
         let x = (i as u32) * card_width + offset_x;
         let bounds = Bounds::new(x, y, card_width, card_height);
         let is_hovered = point_in_bounds(mx, my, &bounds);
-        let is_selected = selected_card.as_ref() == Some(card);
+        let is_selected = selected_cards.contains(card);
 
         // Inset dimensions to make room for overlay-style border
         let inner_x = x + inset;

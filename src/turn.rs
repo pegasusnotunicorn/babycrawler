@@ -1,4 +1,4 @@
-use turbo::os::server::{ self, command::CommandHandler };
+use turbo::os::server::{ self };
 use crate::{ GameState, Card, HAND_SIZE };
 
 #[turbo::program]

@@ -1,13 +1,12 @@
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
-use serde::{ Serialize, Deserialize };
+use serde::{ Deserialize, Serialize };
 
-use crate::{ constants::{ FLASH_SPEED, FLOOR_COLOR, WALL_COLOR }, util::lerp_color };
+use crate::{ constants::{ FLASH_SPEED, FLOOR_COLOR, MAP_SIZE, WALL_COLOR }, util::lerp_color };
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Tile {
-    pub grid_x: usize,
-    pub grid_y: usize,
     pub entrances: Vec<Direction>,
+    pub is_highlighted: bool,
 }
 
 #[derive(
@@ -29,24 +28,106 @@ pub enum Direction {
 }
 
 impl Tile {
-    pub fn new(x: usize, y: usize, entrances: Vec<Direction>) -> Self {
-        Self { grid_x: x, grid_y: y, entrances }
+    pub fn new(entrances: Vec<Direction>) -> Self {
+        Self {
+            entrances,
+            is_highlighted: false,
+        }
     }
 
-    pub fn can_move_to(&self, other: &Tile) -> bool {
+    /// Given a tile index, return (x, y)
+    pub fn position(index: usize) -> (usize, usize) {
+        (index % MAP_SIZE, index / MAP_SIZE)
+    }
+
+    /// Return x from index
+    pub fn x(index: usize) -> usize {
+        index % MAP_SIZE
+    }
+
+    /// Return y from index
+    pub fn y(index: usize) -> usize {
+        index / MAP_SIZE
+    }
+
+    /// Convert (x, y) to tile index
+    pub fn index(x: usize, y: usize) -> usize {
+        y * MAP_SIZE + x
+    }
+
+    /// Given a tile index and tile_size, return (tx, ty) screen coordinates
+    pub fn screen_position(
+        index: usize,
+        tile_size: u32,
+        offset_x: u32,
+        offset_y: u32
+    ) -> (u32, u32) {
+        let (x, y) = Self::position(index);
+        let tx = offset_x + (x as u32) * tile_size;
+        let ty = offset_y + (y as u32) * tile_size;
+        (tx, ty)
+    }
+
+    /// Returns all valid indices adjacent to (px, py)
+    pub fn get_adjacent_indices(
+        origin_index: usize,
+        include_diagonals: bool,
+        include_self: bool
+    ) -> Vec<usize> {
+        let (px, py) = Tile::position(origin_index);
+        let mut indices = vec![];
+
+        for y in 0..MAP_SIZE {
+            for x in 0..MAP_SIZE {
+                let dx = ((x as isize) - (px as isize)).abs();
+                let dy = ((y as isize) - (py as isize)).abs();
+
+                let is_self = dx == 0 && dy == 0;
+                if !include_self && is_self {
+                    continue;
+                }
+
+                let is_diagonal = dx == 1 && dy == 1;
+                let is_adjacent = dx + dy == 1;
+
+                if
+                    (include_diagonals && (is_adjacent || is_diagonal || is_self)) ||
+                    (!include_diagonals && is_adjacent)
+                {
+                    indices.push(Tile::index(x, y));
+                }
+            }
+        }
+
+        indices
+    }
+
+    /// Whether self can move to `other`, based on shared entrances
+    pub fn can_move_to(&self, self_index: usize, other: &Tile, other_index: usize) -> bool {
         use Direction::*;
-        let dx = (other.grid_x as isize) - (self.grid_x as isize);
-        let dy = (other.grid_y as isize) - (self.grid_y as isize);
+
+        let (sx, sy) = Tile::position(self_index);
+        let (ox, oy) = Tile::position(other_index);
+
+        let dx = (ox as isize) - (sx as isize);
+        let dy = (oy as isize) - (sy as isize);
 
         match (dx, dy) {
             (0, -1) => self.entrances.contains(&Up) && other.entrances.contains(&Down),
             (0, 1) => self.entrances.contains(&Down) && other.entrances.contains(&Up),
             (-1, 0) => self.entrances.contains(&Left) && other.entrances.contains(&Right),
             (1, 0) => self.entrances.contains(&Right) && other.entrances.contains(&Left),
-            _ => false, // not adjacent
+            _ => false,
         }
     }
 
+    /// Swaps state with another tile, including grid position and entrances
+    pub fn swap_with(&mut self, other: &mut Tile) {
+        std::mem::swap(&mut self.entrances, &mut other.entrances);
+        std::mem::swap(&mut self.is_highlighted, &mut other.is_highlighted);
+    }
+
+    /// Rotate all entrances clockwise
     pub fn rotate_clockwise(&mut self, times: usize) {
         use Direction::*;
         self.entrances = self.entrances
@@ -70,18 +151,12 @@ impl Tile {
             .collect();
     }
 
-    pub fn draw_at_absolute(
-        &self,
-        absolute_x: i32,
-        absolute_y: i32,
-        tile_size: u32,
-        should_highlight: bool,
-        frame: f64
-    ) {
-        let wall_width = 5 as i32;
+    /// Draws the tile, including walls and floor and optional highlight pulse
+    pub fn draw(&self, x: i32, y: i32, tile_size: u32, should_highlight: bool, frame: f64) {
+        let wall_width = 5;
         let inner_size = tile_size.saturating_sub((wall_width as u32) * 2);
-        let inner_x = absolute_x + (wall_width as i32);
-        let inner_y = absolute_y + (wall_width as i32);
+        let inner_x = x + wall_width;
+        let inner_y = y + wall_width;
         let ts = tile_size as i32;
 
         let t = (frame * FLASH_SPEED).sin() * 0.5 + 0.5;
@@ -91,21 +166,20 @@ impl Tile {
             WALL_COLOR
         };
 
-        // 🔳 Step 1: Draw outer border walls as a big rect
-        rect!(x = absolute_x, y = absolute_y, w = tile_size, h = tile_size, color = wall_color);
+        // 🔳 Step 1: Draw outer border walls
+        rect!(x = x, y = y, w = tile_size, h = tile_size, color = wall_color);
 
-        // 🟥 Step 2: Draw inner background as floor
+        // 🟥 Step 2: Inner floor
         rect!(x = inner_x, y = inner_y, w = inner_size, h = inner_size, color = FLOOR_COLOR);
 
-        // 🔲 Step 3: Draw gaps in the walls (entrances) as small rects "cutting through" walls
+        // 🔲 Step 3: Draw entrances as gaps in walls
         let seg = ts / 3;
-
         for dir in &self.entrances {
             match dir {
                 Direction::Up => {
                     rect!(
-                        x = absolute_x + seg,
-                        y = absolute_y,
+                        x = x + seg,
+                        y = y,
                         w = ts - seg * 2,
                         h = wall_width,
                         color = FLOOR_COLOR
@@ -113,8 +187,8 @@ impl Tile {
                 }
                 Direction::Down => {
                     rect!(
-                        x = absolute_x + seg,
-                        y = absolute_y + ts - wall_width,
+                        x = x + seg,
+                        y = y + ts - wall_width,
                         w = ts - seg * 2,
                         h = wall_width,
                         color = FLOOR_COLOR
@@ -122,8 +196,8 @@ impl Tile {
                 }
                 Direction::Left => {
                     rect!(
-                        x = absolute_x,
-                        y = absolute_y + seg,
+                        x = x,
+                        y = y + seg,
                         w = wall_width,
                         h = ts - seg * 2,
                         color = FLOOR_COLOR
@@ -131,8 +205,8 @@ impl Tile {
                 }
                 Direction::Right => {
                     rect!(
-                        x = absolute_x + ts - wall_width,
-                        y = absolute_y + seg,
+                        x = x + ts - wall_width,
+                        y = y + seg,
                         w = wall_width,
                         h = ts - seg * 2,
                         color = FLOOR_COLOR
@@ -140,5 +214,12 @@ impl Tile {
                 }
             }
         }
+    }
+}
+
+/// Helper function to turn off all highlights
+pub fn clear_highlights(tiles: &mut [Tile]) {
+    for tile in tiles.iter_mut() {
+        tile.is_highlighted = false;
     }
 }

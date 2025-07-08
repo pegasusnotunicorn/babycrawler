@@ -4,6 +4,7 @@ mod input;
 mod player;
 mod tile;
 mod card;
+mod card_effect;
 mod constants;
 mod ui;
 mod turn;
@@ -11,12 +12,12 @@ mod util;
 
 use crate::{
     board::draw_board,
+    card::Card,
+    constants::*,
     hand::draw_hand,
     input::handle_input,
     player::{ Player, PlayerId },
-    tile::{ Tile, Direction },
-    card::{ Card },
-    constants::*,
+    tile::{ clear_highlights, Direction, Tile },
     ui::draw_turn_label,
 };
 
@@ -28,22 +29,20 @@ pub struct GameState {
     pub tiles: Vec<Tile>,
     pub players: Vec<Player>,
     pub current_turn: usize,
-    pub selected_card: Option<Card>,
+    pub selected_cards: Vec<Card>,
 }
 
 impl GameState {
     pub fn new() -> Self {
         let mut tiles = vec![];
-        for y in 0..MAP_SIZE {
-            for x in 0..MAP_SIZE {
-                let mut entrances = vec![];
-                for dir in &[Direction::Up, Direction::Down, Direction::Left, Direction::Right] {
-                    if rand() % 2 == 0 {
-                        entrances.push(*dir);
-                    }
+        for _ in 0..MAP_SIZE * MAP_SIZE {
+            let mut entrances = vec![];
+            for dir in &[Direction::Up, Direction::Down, Direction::Left, Direction::Right] {
+                if rand() % 2 == 0 {
+                    entrances.push(*dir);
                 }
-                tiles.push(Tile::new(x, y, entrances));
             }
+            tiles.push(Tile::new(entrances));
         }
 
         let mut players = vec![
@@ -61,7 +60,7 @@ impl GameState {
             tiles,
             players,
             current_turn: 0,
-            selected_card: None,
+            selected_cards: vec![],
         }
     }
 
@@ -76,26 +75,27 @@ impl GameState {
         let offset_x = canvas_width / 2 - (tile_size * (MAP_SIZE as u32)) / 2;
         let offset_y = 0;
 
-        handle_input(self, &pointer, pointer_xy, tile_size, offset_x);
-        draw_board(self, self.frame as f64, pointer, pointer_xy, tile_size, offset_x, offset_y);
+        handle_input(self, &pointer, pointer_xy, tile_size, offset_x, offset_y);
 
-        let selected = self.selected_card.clone();
-
+        // draw shit
+        draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
         draw_hand(
             &self.players[self.current_turn].hand,
-            &selected,
+            &self.selected_cards.clone(),
             tile_size,
             self.frame as f64,
             |card| {
-                if self.selected_card.as_ref() == Some(card) {
-                    self.selected_card = None; // deselect
-                } else {
-                    self.selected_card = Some(card.clone()); // select
+                Card::toggle_in(&mut self.selected_cards, card);
+                clear_highlights(&mut self.tiles);
+                if self.selected_cards.len() == 1 {
+                    let card = &self.selected_cards[0];
+                    let player = &self.players[self.current_turn];
+                    card.effect.highlight_tiles(player.position, &mut self.tiles);
                 }
             }
         );
-
         draw_turn_label(self.current_turn, tile_size);
+
         fs::write("state", self).ok();
     }
 }

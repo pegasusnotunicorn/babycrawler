@@ -24,8 +24,9 @@ impl Player {
         }
     }
 
-    pub fn move_to(&mut self, to: &Tile) {
-        self.position = (to.grid_x, to.grid_y);
+    pub fn move_to(&mut self, to_index: usize) {
+        let (nx, ny) = Tile::position(to_index);
+        self.position = (nx, ny);
     }
 
     pub fn draw_card(&mut self, card: crate::card::Card) {
