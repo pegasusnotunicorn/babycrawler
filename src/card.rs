@@ -1,5 +1,5 @@
 use crate::card_effect::CardEffect;
-use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, random::rand, * };
+use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, os::server::random_number, * };
 use serde::{ Serialize, Deserialize };
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -25,13 +25,13 @@ impl Card {
 
     // get a random card
     pub fn random() -> Self {
-        let index = (rand() as usize) % CARD_CONSTRUCTORS.len();
+        let index = (random::u32() as usize) % CARD_CONSTRUCTORS.len();
         (CARD_CONSTRUCTORS[index])()
     }
 
     pub fn rotate_card() -> Self {
         Self {
-            id: rand(),
+            id: random::u32(),
             name: "Rotate".into(),
             effect: CardEffect::RotateCard,
             color: 0x3366ccff, // Blue
@@ -40,7 +40,7 @@ impl Card {
 
     pub fn move_card() -> Self {
         Self {
-            id: rand(),
+            id: random::u32(),
             name: "Move".into(),
             effect: CardEffect::MoveOneTile,
             color: 0x33cc33ff, // Green
@@ -49,7 +49,7 @@ impl Card {
 
     pub fn swap_card() -> Self {
         Self {
-            id: rand(),
+            id: random::u32(),
             name: "Swap".into(),
             effect: CardEffect::SwapCard,
             color: 0xffff00ff, // Yellow

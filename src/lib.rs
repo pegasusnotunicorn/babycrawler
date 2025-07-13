@@ -21,7 +21,7 @@ use crate::{
     ui::draw_turn_label,
 };
 
-use turbo::{ bounds, random::rand, os::server::fs, * };
+use turbo::{ bounds, os::server::fs, * };
 
 #[turbo::game]
 pub struct GameState {
@@ -38,7 +38,7 @@ impl GameState {
         for _ in 0..MAP_SIZE * MAP_SIZE {
             let mut entrances = vec![];
             for dir in &[Direction::Up, Direction::Down, Direction::Left, Direction::Right] {
-                if rand() % 2 == 0 {
+                if random::bool() == true {
                     entrances.push(*dir);
                 }
             }
@@ -70,7 +70,7 @@ impl GameState {
 
         let pointer = mouse::screen();
         let pointer_xy = (pointer.x, pointer.y);
-        let canvas_width = bounds::canvas().w();
+        let canvas_width = bounds::screen().w();
         let tile_size = canvas_width / (MAP_SIZE as u32);
         let offset_x = canvas_width / 2 - (tile_size * (MAP_SIZE as u32)) / 2;
         let offset_y = 0;

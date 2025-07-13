@@ -16,8 +16,8 @@ pub fn draw_hand(
 
     let pointer = mouse::screen();
     let pointer_xy = (pointer.x, pointer.y);
-    let canvas_width = bounds::canvas().w() - GAME_PADDING * 2;
-    let canvas_height = bounds::canvas().h();
+    let canvas_width = bounds::screen().w() - GAME_PADDING * 2;
+    let canvas_height = bounds::screen().h();
 
     let card_width = canvas_width / (hand.len() as u32);
     let card_height = card_width.min(canvas_height / 5);

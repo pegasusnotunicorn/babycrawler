@@ -3,7 +3,7 @@ use turbo::*;
 use crate::constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR };
 
 pub fn draw_turn_label(current_turn: usize, tile_size: u32) {
-    let canvas_bounds = bounds::canvas();
+    let canvas_bounds = bounds::screen();
     let canvas_width = canvas_bounds.w();
     let canvas_height = canvas_bounds.h();
 
