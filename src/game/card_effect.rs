@@ -1,6 +1,5 @@
 use crate::game::constants::MAP_SIZE;
 use crate::game::tile::{ Tile, clear_highlights };
-use crate::game::turn::commands::{ NextTurn, DealCard };
 use crate::game::player::Player;
 use crate::GameState;
 
@@ -114,7 +113,7 @@ impl CardEffect {
     fn end_turn(state: &mut GameState) {
         state.selected_cards.clear();
         clear_highlights(&mut state.tiles);
-        let _ = DealCard.exec();
-        let _ = NextTurn.exec();
+        // let _ = DealCard.exec();
+        // let _ = NextTurn.exec();
     }
 }

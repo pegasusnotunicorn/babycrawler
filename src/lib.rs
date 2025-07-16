@@ -1,5 +1,7 @@
+mod game_channel;
+use game_channel::server::GameChannel;
+use game_channel::server::{ GameToClient as GCToClient, GameToServer as GCToServer };
 mod game;
-mod network;
 mod scene;
 
 use crate::game::board::draw_board;
@@ -14,8 +16,6 @@ use crate::game::ui::draw_turn_label;
 use turbo::{ bounds, os::server::fs, * };
 use turbo::os;
 use turbo::gamepad;
-
-use network::{ ClientMsg, ServerMsg, matchmaking };
 use scene::{ GameMode, Scene, MultiplayerScene };
 
 #[turbo::game]
@@ -31,8 +31,8 @@ pub struct GameState {
     pub user: String, // This client's user id
     pub online_now: usize, // Number of users online (matchmaking)
     pub in_lobby: Vec<String>, // Users in the current game lobby
-    // Add multiplayer scene state
     pub multiplayer_scene: Option<MultiplayerScene>,
+    pub current_turn_player_id: String, // Track whose turn it is in multiplayer
 }
 
 impl GameState {
@@ -70,6 +70,7 @@ impl GameState {
             online_now: 0,
             in_lobby: Vec::new(),
             multiplayer_scene: None,
+            current_turn_player_id: String::new(),
         }
     }
 
@@ -96,7 +97,6 @@ impl GameState {
         match self.mode {
             GameMode::Singleplayer => {
                 self.frame += 1;
-                // Refactor draw_hand callback to avoid borrow issues
                 let mut clicked_card: Option<Card> = None;
                 self.draw_game_with_callback(&mut clicked_card);
                 if let Some(card) = clicked_card {
@@ -124,84 +124,40 @@ impl GameState {
                 if self.multiplayer_scene.is_none() {
                     self.multiplayer_scene = Some(MultiplayerScene::MainMenu);
                 }
-                if let Some(mm_conn) = matchmaking::MatchmakingChannel::subscribe("GLOBAL") {
-                    let scene = self.multiplayer_scene.take().unwrap();
-                    match &scene {
-                        MultiplayerScene::MainMenu => {
-                            self.draw_multiplayer_main_menu();
-                            let gp = gamepad::get(0);
-                            if gp.start.just_pressed() {
-                                let _ = mm_conn.send(&ClientMsg::FindGame);
+                if let Some(conn) = GameChannel::subscribe("GLOBAL") {
+                    while let Ok(msg) = conn.recv() {
+                        match msg {
+                            GCToClient::Turn { player_id } => {
+                                self.current_turn_player_id = player_id;
                             }
-                            let mut new_scene = MultiplayerScene::MainMenu;
-                            while let Ok(server_msg) = mm_conn.recv() {
-                                match server_msg {
-                                    ServerMsg::ConnectedUsers { ref users } => {
-                                        self.online_now = users.len();
-                                    }
-                                    ServerMsg::JoinChannel { ref id } => {
-                                        new_scene = MultiplayerScene::Lobby { id: id.clone() };
-                                    }
-                                    _ => {}
-                                }
+                            GCToClient::ConnectedUsers { users } => {
+                                self.in_lobby = users;
                             }
-                            self.multiplayer_scene = Some(new_scene);
+                            // handle other variants if needed
                         }
-                        MultiplayerScene::Lobby { id } | MultiplayerScene::Game { id } => {
-                            let lobby_id = id.clone();
-                            while let Ok(_) = mm_conn.recv() {}
-                            let mut new_scene = match &scene {
-                                MultiplayerScene::Lobby { .. } =>
-                                    MultiplayerScene::Lobby { id: id.clone() },
-                                MultiplayerScene::Game { .. } =>
-                                    MultiplayerScene::Game { id: id.clone() },
-                                _ => unreachable!(),
-                            };
-                            if let Some(conn) = matchmaking::GameChannel::subscribe(&id) {
-                                let gp = gamepad::get(0);
-                                if gp.a.just_pressed() {
-                                    if &self.user == id {
-                                        let _ = mm_conn.send(&ClientMsg::CloseLobby);
-                                        let _ = conn.send(&ClientMsg::CloseLobby);
-                                    }
-                                    new_scene = MultiplayerScene::Disconnected {
-                                        player: self.user.clone(),
-                                    };
-                                }
-                                while let Ok(server_msg) = conn.recv() {
-                                    match server_msg {
-                                        ServerMsg::ConnectedUsers { ref users } => {
-                                            self.in_lobby = users.clone();
-                                        }
-                                        ServerMsg::StartGame => {
-                                            let _ = mm_conn.send(&ClientMsg::CloseLobby);
-                                            new_scene = MultiplayerScene::Game {
-                                                id: lobby_id.clone(),
-                                            };
-                                        }
-                                        ServerMsg::PlayerLeave { ref player } => {
-                                            new_scene = MultiplayerScene::Disconnected {
-                                                player: player.clone(),
-                                            };
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                            self.draw_multiplayer_lobby(&id);
-                            self.multiplayer_scene = Some(new_scene);
-                        }
-                        MultiplayerScene::Disconnected { player } => {
-                            self.in_lobby.clear();
-                            self.draw_multiplayer_disconnected(&player);
-                            let gp = gamepad::get(0);
-                            let new_scene = if gp.a.just_pressed() || gp.start.just_pressed() {
-                                MultiplayerScene::MainMenu
-                            } else {
-                                MultiplayerScene::Disconnected { player: player.clone() }
-                            };
-                            self.multiplayer_scene = Some(new_scene);
-                        }
+                    }
+                    let is_my_turn = self.user == self.current_turn_player_id;
+                    clear(0x222034ff);
+                    if is_my_turn {
+                        text!(
+                            "Your turn! Press A to end turn",
+                            x = 40,
+                            y = 80,
+                            font = "large",
+                            color = 0xffffffff
+                        );
+                    } else {
+                        text!(
+                            "Waiting for opponent...",
+                            x = 40,
+                            y = 80,
+                            font = "large",
+                            color = 0xffffffff
+                        );
+                    }
+                    let gp = gamepad::get(0);
+                    if is_my_turn && gp.a.just_pressed() {
+                        let _ = conn.send(&GCToServer::EndTurn);
                     }
                 }
             }
