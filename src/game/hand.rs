@@ -1,6 +1,6 @@
-use crate::card::Card;
-use crate::constants::{ FLASH_SPEED, GAME_PADDING };
-use crate::util::point_in_bounds;
+use crate::game::card::Card;
+use crate::game::constants::{ FLASH_SPEED, GAME_PADDING };
+use crate::game::util::point_in_bounds;
 use turbo::*;
 
 pub fn draw_hand(

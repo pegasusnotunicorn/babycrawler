@@ -1,10 +1,9 @@
-use crate::{
-    constants::MAP_SIZE,
-    tile::{ Tile, clear_highlights },
-    GameState,
-    turn::commands::{ NextTurn, DealCard },
-    player::Player,
-};
+use crate::game::constants::MAP_SIZE;
+use crate::game::tile::{ Tile, clear_highlights };
+use crate::game::turn::commands::{ NextTurn, DealCard };
+use crate::game::player::Player;
+use crate::GameState;
+
 use turbo::*;
 use serde::{ Serialize, Deserialize };
 use turbo::borsh::{ BorshDeserialize, BorshSerialize };

@@ -1,4 +1,5 @@
-use crate::{ constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR }, tile::Tile };
+use crate::game::constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR };
+use crate::game::tile::Tile;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 
@@ -12,7 +13,7 @@ pub enum PlayerId {
 pub struct Player {
     pub id: PlayerId,
     pub position: (usize, usize),
-    pub hand: Vec<crate::card::Card>,
+    pub hand: Vec<crate::game::card::Card>,
 }
 
 impl Player {
@@ -29,7 +30,7 @@ impl Player {
         self.position = (nx, ny);
     }
 
-    pub fn draw_card(&mut self, card: crate::card::Card) {
+    pub fn draw_card(&mut self, card: crate::game::card::Card) {
         self.hand.push(card);
     }
 

@@ -1,7 +1,7 @@
+use crate::game::constants::{ FLASH_SPEED, FLOOR_COLOR, MAP_SIZE, WALL_COLOR };
+use crate::game::util::lerp_color;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Deserialize, Serialize };
-
-use crate::{ constants::{ FLASH_SPEED, FLOOR_COLOR, MAP_SIZE, WALL_COLOR }, util::lerp_color };
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Tile {

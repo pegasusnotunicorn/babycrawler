@@ -1,129 +1,22 @@
-mod board;
-mod hand;
-mod input;
-mod player;
-mod tile;
-mod card;
-mod card_effect;
-mod constants;
-mod ui;
-mod turn;
-mod util;
+mod game;
+mod network;
+mod scene;
 
-use crate::{
-    board::draw_board,
-    card::Card,
-    constants::*,
-    hand::draw_hand,
-    input::handle_input,
-    player::{ Player, PlayerId },
-    tile::{ clear_highlights, Direction, Tile },
-    ui::draw_turn_label,
-};
+use crate::game::board::draw_board;
+use crate::game::card::Card;
+use crate::game::constants::*;
+use crate::game::hand::draw_hand;
+use crate::game::input::handle_input;
+use crate::game::player::{ Player, PlayerId };
+use crate::game::tile::{ clear_highlights, Direction, Tile };
+use crate::game::ui::draw_turn_label;
 
 use turbo::{ bounds, os::server::fs, * };
 use turbo::os;
 use turbo::gamepad;
 
-// Add stubs for networking message types and matchmaking module
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum ClientMsg {
-    FindGame,
-    CloseLobby,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum ServerMsg {
-    ConnectedUsers {
-        users: Vec<String>,
-    },
-    JoinChannel {
-        id: String,
-    },
-    StartGame,
-    PlayerLeave {
-        player: String,
-    },
-}
-
-// Stub matchmaking module to allow code to compile
-pub mod matchmaking {
-    use super::{ ClientMsg, ServerMsg };
-    pub struct MatchmakingChannel;
-    pub struct GameChannel;
-    impl MatchmakingChannel {
-        pub fn subscribe(_id: &str) -> Option<Self> {
-            None
-        }
-        pub fn send(&self, _msg: &ClientMsg) -> Result<(), ()> {
-            Ok(())
-        }
-        pub fn recv(&self) -> Result<ServerMsg, ()> {
-            Err(())
-        }
-    }
-    impl GameChannel {
-        pub fn subscribe(_id: &str) -> Option<Self> {
-            None
-        }
-        pub fn send(&self, _msg: &ClientMsg) -> Result<(), ()> {
-            Ok(())
-        }
-        pub fn recv(&self) -> Result<ServerMsg, ()> {
-            Err(())
-        }
-    }
-}
-
-// Add GameMode enum to track play mode
-#[derive(
-    Debug,
-    Clone,
-    borsh::BorshDeserialize,
-    borsh::BorshSerialize,
-    serde::Serialize,
-    serde::Deserialize
-)]
-pub enum GameMode {
-    Singleplayer,
-    Multiplayer,
-}
-
-// Add Scene enum for menu/game state
-#[derive(
-    Debug,
-    Clone,
-    borsh::BorshDeserialize,
-    borsh::BorshSerialize,
-    serde::Serialize,
-    serde::Deserialize
-)]
-pub enum Scene {
-    Menu,
-    Game,
-}
-
-// Multiplayer scene state for multiplayer mode
-#[derive(
-    Debug,
-    Clone,
-    borsh::BorshDeserialize,
-    borsh::BorshSerialize,
-    serde::Serialize,
-    serde::Deserialize
-)]
-pub enum MultiplayerScene {
-    MainMenu,
-    Lobby {
-        id: String,
-    },
-    Game {
-        id: String,
-    },
-    Disconnected {
-        player: String,
-    },
-}
+use network::{ ClientMsg, ServerMsg, matchmaking };
+use scene::{ GameMode, Scene, MultiplayerScene };
 
 #[turbo::game]
 pub struct GameState {

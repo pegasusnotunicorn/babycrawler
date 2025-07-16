@@ -1,6 +1,6 @@
 use crate::{ GameState };
 
-use crate::tile::Tile;
+use crate::game::tile::Tile;
 
 pub fn draw_board(state: &GameState, frame: f64, tile_size: u32, offset_x: u32, offset_y: u32) {
     for (i, tile) in state.tiles.iter().enumerate() {

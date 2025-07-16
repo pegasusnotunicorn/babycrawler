@@ -1,5 +1,5 @@
-use crate::card_effect::CardEffect;
-use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, os::server::random_number, * };
+use crate::game::card_effect::CardEffect;
+use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]

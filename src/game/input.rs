@@ -1,6 +1,6 @@
-use crate::tile::Tile;
-use crate::{ GameState };
-use crate::util::point_in_bounds;
+use crate::game::tile::Tile;
+use crate::game::util::point_in_bounds;
+use crate::GameState;
 use turbo::*;
 
 pub fn handle_input(
