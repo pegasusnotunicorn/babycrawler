@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [package.metadata.turbo]
-user = "ee55d090-c4f2-4180-9bd2-bc6aadd193b9"
+user = "a244b809-5921-450d-b538-c7d076612e6b"
 
 [dependencies]
 turbo = { version = "4.0.0-alpha.18", package = "turbo-genesis-sdk" }

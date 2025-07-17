@@ -55,8 +55,8 @@ impl CardEffect {
     }
 
     fn apply_move_one_tile(&self, state: &mut GameState, tile_index: usize) {
-        let current_turn = state.current_turn;
-        let (px, py) = state.players[current_turn].position;
+        let player = state.current_player().unwrap();
+        let (px, py) = player.position;
         let current_index = py * MAP_SIZE + px;
 
         if tile_index == current_index {
@@ -67,7 +67,8 @@ impl CardEffect {
             return;
         }
 
-        state.players[current_turn].move_to(tile_index);
+        let player = state.current_player_mut().unwrap();
+        player.move_to(tile_index);
         Self::end_turn(state);
     }
 
@@ -105,7 +106,7 @@ impl CardEffect {
     }
 
     fn current_player_and_index(state: &mut GameState) -> (&mut Player, usize) {
-        let player = &mut state.players[state.current_turn];
+        let player = state.current_player_mut().unwrap();
         let (px, py) = player.position;
         (player, py * MAP_SIZE + px)
     }

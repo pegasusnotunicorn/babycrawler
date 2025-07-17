@@ -3,7 +3,7 @@ use serde::{ Serialize, Deserialize };
 use turbo::borsh::{ BorshSerialize, BorshDeserialize };
 
 #[turbo::program]
-pub mod server {
+pub mod game_server {
     use super::*;
 
     #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
@@ -24,6 +24,7 @@ pub mod server {
     #[turbo::channel(name = "game")]
     pub struct GameChannel {
         players: Vec<String>,
+        current_turn_index: usize,
     }
 
     impl turbo::ChannelHandler for GameChannel {
@@ -33,6 +34,7 @@ pub mod server {
         fn new() -> Self {
             Self {
                 players: Vec::new(),
+                current_turn_index: 0,
             }
         }
 
@@ -45,26 +47,23 @@ pub mod server {
             server::channel::broadcast(GameToClient::ConnectedUsers {
                 users: self.players.clone(),
             });
-            // Optionally, broadcast whose turn it is (first player by default)
             if self.players.len() == 1 {
-                server::channel::broadcast(GameToClient::Turn {
-                    player_id: self.players[0].clone(),
-                });
+                self.current_turn_index = 0;
             }
+            self.broadcast_turn();
         }
 
         fn on_disconnect(&mut self, user_id: &str) {
             use turbo::os::server;
+            let was_turn = self.players.get(self.current_turn_index) == Some(&user_id.to_string());
             self.players.retain(|p| p != user_id);
             server::channel::broadcast(GameToClient::ConnectedUsers {
                 users: self.players.clone(),
             });
-            // Optionally, broadcast new turn if needed
-            if !self.players.is_empty() {
-                server::channel::broadcast(GameToClient::Turn {
-                    player_id: self.players[0].clone(),
-                });
+            if was_turn && !self.players.is_empty() {
+                self.current_turn_index %= self.players.len();
             }
+            self.broadcast_turn();
         }
 
         fn on_data(&mut self, user_id: &str, data: Self::Recv) {
@@ -73,16 +72,23 @@ pub mod server {
             match data {
                 GameToServer::EndTurn => {
                     server::log!("[GameChannel] EndTurn received from {user_id}");
-                    // Advance to next player
-                    if let Some(idx) = self.players.iter().position(|id| id == user_id) {
-                        let next_idx = (idx + 1) % self.players.len();
-                        server::log!("[GameChannel] Next player index: {next_idx}");
-                        let next_player_id = self.players[next_idx].clone();
-                        server::channel::broadcast(GameToClient::Turn {
-                            player_id: next_player_id,
-                        });
+                    if self.players.get(self.current_turn_index) == Some(&user_id.to_string()) {
+                        self.current_turn_index =
+                            (self.current_turn_index + 1) % self.players.len();
+                        self.broadcast_turn();
                     }
                 }
+            }
+        }
+    }
+
+    impl GameChannel {
+        fn broadcast_turn(&self) {
+            use turbo::os::server;
+            if let Some(user_id) = self.players.get(self.current_turn_index) {
+                server::channel::broadcast(GameToClient::Turn {
+                    player_id: user_id.clone(),
+                });
             }
         }
     }

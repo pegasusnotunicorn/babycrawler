@@ -4,8 +4,8 @@ description = "Help your baby escape from the dungeon!"
 authors = ["1min", "Pegasus Games"]
 
 [canvas]
-width = 720
-height = 1280
+width = 360
+height = 640
 
 [turbo-os]
 api-url = "https://os.turbo.computer"
