@@ -1,4 +1,3 @@
-use crate::game::constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR };
 use turbo::*;
 
 pub fn draw_turn_label(is_my_turn: bool, tile_size: u32) {

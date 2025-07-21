@@ -8,7 +8,6 @@
     serde::Deserialize
 )]
 pub enum GameMode {
-    Singleplayer,
     Multiplayer,
 }
 

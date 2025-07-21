@@ -14,7 +14,7 @@ const CARD_CONSTRUCTORS: &[fn() -> Card] = &[Card::move_card, Card::rotate_card,
 
 impl Card {
     // toggle a card as selected
-    pub fn toggle_in(selected: &mut Vec<Card>, card: &Card) {
+    pub fn toggle_selection(selected: &mut Vec<Card>, card: &Card) {
         if let Some(pos) = selected.iter().position(|c| c == card) {
             selected.remove(pos);
         } else {
@@ -52,7 +52,7 @@ impl Card {
             id: random::u32(),
             name: "Swap".into(),
             effect: CardEffect::SwapCard,
-            color: 0xffff00ff, // Yellow
+            color: 0xffa500ff, // Orange
         }
     }
 }

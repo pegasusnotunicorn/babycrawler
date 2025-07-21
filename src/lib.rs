@@ -1,6 +1,6 @@
 mod game_channel;
-use game_channel::game_server::GameChannel;
-use game_channel::game_server::{ GameToClient as GCToClient, GameToServer as GCToServer };
+use game_channel::server::GameChannel;
+use game_channel::server::{ GameToClient as GCToClient, GameToServer as GCToServer };
 mod game;
 mod scene;
 
@@ -10,13 +10,13 @@ use crate::game::constants::*;
 use crate::game::hand::draw_hand;
 use crate::game::input::handle_input;
 use crate::game::player::{ Player, PlayerId };
-use crate::game::tile::{ clear_highlights, Direction, Tile };
+use crate::game::tile::{ Direction, Tile };
 use crate::game::ui::draw_turn_label;
 
-use turbo::{ bounds, os::server::fs, * };
+use turbo::{ bounds, * };
 use turbo::os;
 use turbo::gamepad;
-use scene::{ GameMode, Scene, MultiplayerScene };
+use scene::{ Scene, MultiplayerScene };
 
 use std::fmt;
 use std::collections::HashMap;
@@ -36,7 +36,6 @@ pub struct GameState {
     pub tiles: Vec<Tile>,
     pub players: Vec<Player>,
     pub selected_cards: Vec<Card>,
-    pub mode: GameMode, // Track current play mode
     pub scene: Scene, // Track current scene (menu or game)
     // Multiplayer state
     pub user: String, // This client's user id
@@ -78,72 +77,69 @@ impl GameState {
             tiles,
             players,
             selected_cards: vec![],
-            mode: GameMode::Singleplayer, // Default to singleplayer for now
             scene: Scene::Menu, // Start in menu scene
-            user: PlayerId::Player1.to_string(), // Set to Player1 for singleplayer
+            user: String::new(), // Will be set on connect
             online_now: 0,
             in_lobby: Vec::new(),
             multiplayer_scene: None,
-            current_turn_player_id: Some(PlayerId::Player1.to_string()),
+            current_turn_player_id: None,
             debug,
             user_id_to_player_id: HashMap::new(),
         }
     }
 
-    /// Helper to get the current player by ID (returns Option<&Player>)
-    fn current_player(&self) -> Option<&Player> {
+    /// Helper to get the current turn player by ID (returns Option<&Player>)
+    fn get_turn_player(&self) -> Option<&Player> {
         let id = self.current_turn_player_id.as_deref()?;
         self.players.iter().find(|p| p.id.to_string() == id)
     }
 
-    /// Helper to get the current player as mutable
-    fn current_player_mut(&mut self) -> Option<&mut Player> {
+    /// Helper to get the current turn player as mutable
+    fn get_turn_player_mut(&mut self) -> Option<&mut Player> {
         let id = self.current_turn_player_id.as_deref()?;
         self.players.iter_mut().find(|p| p.id.to_string() == id)
     }
 
-    fn draw_menu(&self) {
-        clear(0x222222ff);
-        let canvas_bounds = bounds::screen();
-        let canvas_width = canvas_bounds.w();
-        let canvas_height = canvas_bounds.h();
-        let menu_items = [
-            "Press Z for Local Play (Singleplayer)",
-            "Press SPACE for Online Play (Multiplayer)",
-        ];
-        let font_height = 30; // Approximate height for "large" font
-        let total_height =
-            (menu_items.len() as u32) * font_height + ((menu_items.len() as u32) - 1) * 10;
-        let start_y = canvas_height / 2 - total_height / 2;
-        for (i, item) in menu_items.iter().enumerate() {
-            let text_width = (item.len() as u32) * 12; // Approximate width per char for "large" font
-            let x = canvas_width / 2 - text_width / 2;
-            let y = start_y + (i as u32) * (font_height + 10);
-            text!(item, x = x, y = y, font = "large", color = 0xffffffff);
-        }
+    /// Returns true if it's this user's turn
+    fn is_my_turn(&self) -> bool {
+        self.current_turn_player_id.as_deref().map_or(false, |id| self.user == id)
+    }
+
+    /// Returns a reference to the Player struct for the current user, if any.
+    pub fn get_local_player(&self) -> Option<&Player> {
+        let player_id = self.user_id_to_player_id.get(&self.user)?;
+        self.players.iter().find(|p| &p.id == player_id)
+    }
+
+    /// Returns a mutable reference to the Player struct for the current user, if any.
+    pub fn get_local_player_mut(&mut self) -> Option<&mut Player> {
+        let player_id = self.user_id_to_player_id.get(&self.user)?;
+        self.players.iter_mut().find(|p| &p.id == player_id)
+    }
+
+    /// Returns (canvas_width, canvas_height, tile_size, offset_x, offset_y) for the board layout
+    pub fn get_board_layout(&self, padded: bool) -> (u32, u32, u32, u32, u32) {
+        let canvas_width = bounds::screen().w() - (if padded { GAME_PADDING * 2 } else { 0 });
+        let canvas_height = bounds::screen().h();
+        let tile_size = canvas_width / (MAP_SIZE as u32);
+        let offset_x = canvas_width / 2 - (tile_size * (MAP_SIZE as u32)) / 2;
+        let offset_y = 0;
+        (canvas_width, canvas_height, tile_size, offset_x, offset_y)
     }
 
     pub fn update(&mut self) {
+        self.frame += 1;
         match self.scene {
             Scene::Menu => self.update_menu(),
             Scene::Game => self.update_game(),
         }
-        if self.debug {
-            self.draw_debug();
-        }
+        self.draw_debug();
     }
 
     fn update_menu(&mut self) {
         self.draw_menu();
         let gp = gamepad::get(0);
-        if gp.a.just_pressed() {
-            self.mode = GameMode::Singleplayer;
-            self.scene = Scene::Game;
-            self.user = PlayerId::Player1.to_string(); // Ensure user is Player1 in singleplayer
-            self.user_id_to_player_id.clear();
-            self.user_id_to_player_id.insert(self.user.clone(), PlayerId::Player1);
-        } else if gp.start.just_pressed() {
-            self.mode = GameMode::Multiplayer;
+        if gp.start.just_pressed() {
             self.scene = Scene::Game;
             self.user = os::client::user_id().unwrap_or_else(|| "NO_ID".to_string());
             // In a real game, you would get the mapping from the server or lobby
@@ -157,113 +153,109 @@ impl GameState {
     }
 
     fn update_game(&mut self) {
-        match self.mode {
-            GameMode::Singleplayer => {
-                self.frame += 1;
-                let mut clicked_card: Option<Card> = None;
-                self.draw_game_with_callback(&mut clicked_card);
-                if let Some(card) = clicked_card {
-                    Card::toggle_in(&mut self.selected_cards, &card);
-                    clear_highlights(&mut self.tiles);
-                    if self.selected_cards.len() == 1 {
-                        let card = &self.selected_cards[0];
-                        let player = self.current_player().unwrap();
-                        card.effect.highlight_tiles(player.position, &mut self.tiles);
+        self.frame += 1;
+        if self.multiplayer_scene.is_none() {
+            self.multiplayer_scene = Some(MultiplayerScene::MainMenu);
+        }
+        if let Some(conn) = GameChannel::subscribe("GLOBAL") {
+            while let Ok(msg) = conn.recv() {
+                match msg {
+                    GCToClient::Turn { player_id } => {
+                        log!("Turn received: {}", player_id);
+                        self.current_turn_player_id = Some(player_id);
                     }
+                    GCToClient::ConnectedUsers { users } => {
+                        self.in_lobby = users.clone();
+                        self.user_id_to_player_id.clear();
+                        if self.in_lobby.len() >= 2 {
+                            self.user_id_to_player_id.insert(
+                                self.in_lobby[0].clone(),
+                                PlayerId::Player1
+                            );
+                            self.user_id_to_player_id.insert(
+                                self.in_lobby[1].clone(),
+                                PlayerId::Player2
+                            );
+                        }
+                    }
+                    // handle other variants if needed
                 }
+            }
+
+            // Draw the full game for both players
+            self.draw_game();
+
+            let is_my_turn = self.is_my_turn();
+            if is_my_turn {
+                // Only allow input for the active player
                 let pointer = mouse::screen();
                 let pointer_xy = (pointer.x, pointer.y);
-                let canvas_width = bounds::screen().w();
-                let tile_size = canvas_width / (MAP_SIZE as u32);
-                let offset_x = canvas_width / 2 - (tile_size * (MAP_SIZE as u32)) / 2;
-                let offset_y = 0;
-                handle_input(self, &pointer, pointer_xy, tile_size, offset_x, offset_y);
-                fs::write("state", self).ok();
-            }
-            GameMode::Multiplayer => {
-                if self.multiplayer_scene.is_none() {
-                    self.multiplayer_scene = Some(MultiplayerScene::MainMenu);
+                handle_input(self, &pointer, pointer_xy);
+                let gp = gamepad::get(0);
+                if gp.a.just_pressed() {
+                    let _ = conn.send(&GCToServer::EndTurn);
+                    log!("EndTurn");
                 }
-                if let Some(conn) = GameChannel::subscribe("GLOBAL") {
-                    while let Ok(msg) = conn.recv() {
-                        match msg {
-                            GCToClient::Turn { player_id } => {
-                                log!("Turn received: {}", player_id);
-                                self.current_turn_player_id = Some(player_id);
-                            }
-                            GCToClient::ConnectedUsers { users } => {
-                                self.in_lobby = users.clone();
-                                self.user_id_to_player_id.clear();
-                                if self.in_lobby.len() >= 2 {
-                                    self.user_id_to_player_id.insert(
-                                        self.in_lobby[0].clone(),
-                                        PlayerId::Player1
-                                    );
-                                    self.user_id_to_player_id.insert(
-                                        self.in_lobby[1].clone(),
-                                        PlayerId::Player2
-                                    );
-                                }
-                            }
-                            // handle other variants if needed
-                        }
-                    }
-                    let is_my_turn = self.current_turn_player_id
-                        .as_deref()
-                        .map_or(false, |id| self.user == id);
-                    // Draw the full game for both players
-                    let mut clicked_card: Option<Card> = None;
-                    self.draw_game_with_callback(&mut clicked_card);
-                    if is_my_turn {
-                        // Only allow input for the active player
-                        let pointer = mouse::screen();
-                        let pointer_xy = (pointer.x, pointer.y);
-                        let canvas_width = bounds::screen().w();
-                        let tile_size = canvas_width / (MAP_SIZE as u32);
-                        let offset_x = canvas_width / 2 - (tile_size * (MAP_SIZE as u32)) / 2;
-                        let offset_y = 0;
-                        handle_input(self, &pointer, pointer_xy, tile_size, offset_x, offset_y);
-                        let gp = gamepad::get(0);
-                        if gp.a.just_pressed() {
-                            let _ = conn.send(&GCToServer::EndTurn);
-                            log!("EndTurn");
-                        }
-                    } else {
-                        // Input is disabled for the non-active player
-                        // (No handle_input or end turn allowed)
-                    }
-                }
+            } else {
+                // Input is disabled for the non-active player
+                // (No handle_input or end turn allowed)
             }
         }
     }
 
+    fn draw_menu(&self) {
+        clear(0x222222ff);
+        let canvas_bounds = bounds::screen();
+        let canvas_width = canvas_bounds.w();
+        let canvas_height = canvas_bounds.h();
+        let menu_items = ["Press SPACE to start"];
+        let font_height = 30; // Approximate height for "large" font
+        let total_height =
+            (menu_items.len() as u32) * font_height + ((menu_items.len() as u32) - 1) * 10;
+        let start_y = canvas_height / 2 - total_height / 2;
+        for (i, item) in menu_items.iter().enumerate() {
+            let text_width = (item.len() as u32) * 12; // Approximate width per char for "large" font
+            let x = canvas_width / 2 - text_width / 2;
+            let y = start_y + (i as u32) * (font_height + 10);
+            text!(item, x = x, y = y, font = "large", color = 0xffffffff);
+        }
+    }
+
     fn draw_debug(&self) {
+        if !self.debug {
+            return;
+        }
+
+        // draw user id
         let id = &self.user;
         let debug_str = format!("Player ID: {}", id);
         text!(&debug_str, x = 8, y = 8, font = "medium", color = 0xffffffff);
 
+        // draw current turn player id
         let current_turn_player_id = self.current_turn_player_id.as_deref().unwrap_or("None");
         let debug_str = format!("Current Turn Player ID: {}", current_turn_player_id);
         text!(&debug_str, x = 8, y = 8 + 15, font = "medium", color = 0xffffffff);
+
+        // draw selected cards
+        let selected_cards = &self.selected_cards;
+        let debug_str = format!("Selected Cards: {}", selected_cards.len());
+        text!(&debug_str, x = 8, y = 8 + 30, font = "medium", color = 0xffffffff);
+
+        // draw get_local_player
+        let local_player = self.get_local_player();
+        let debug_str = format!("Local Player: {:?}", local_player);
+        text!(&debug_str, x = 8, y = 8 + 45, font = "medium", color = 0xffffffff);
     }
 
-    fn draw_game_with_callback(&self, clicked_card: &mut Option<Card>) {
+    fn draw_game(&self) {
         clear(GAME_BG_COLOR);
-        let canvas_width = bounds::screen().w();
-        let tile_size = canvas_width / (MAP_SIZE as u32);
-        let offset_x = canvas_width / 2 - (tile_size * (MAP_SIZE as u32)) / 2;
-        let offset_y = 0;
+        let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) =
+            self.get_board_layout(false);
         draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
-        let player_id = self.user_id_to_player_id.get(&self.user);
-        let player = player_id.and_then(|pid| self.players.iter().find(|p| &p.id == pid));
-        if let Some(player) = player {
-            draw_hand(&player.hand, &self.selected_cards, tile_size, self.frame as f64, |card| {
-                *clicked_card = Some(card.clone());
-            });
-            let is_my_turn = self.current_turn_player_id
-                .as_deref()
-                .map_or(false, |id| self.user == id);
-            draw_turn_label(is_my_turn, tile_size);
+
+        if let Some(player) = self.get_local_player() {
+            draw_hand(self, &player.hand, &self.selected_cards, tile_size, self.frame as f64);
+            draw_turn_label(self.is_my_turn(), tile_size);
         }
         if self.debug {
             self.draw_debug();
