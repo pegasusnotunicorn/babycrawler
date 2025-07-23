@@ -1,6 +1,6 @@
 mod game_channel;
-use game_channel::server::GameChannel;
-use game_channel::server::{ GameToClient as GCToClient, GameToServer as GCToServer };
+use game_channel::game_server::GameChannel;
+use game_channel::game_server::{ GameToClient as GCToClient, GameToServer as GCToServer };
 mod game;
 mod scene;
 
@@ -11,7 +11,7 @@ use crate::game::hand::draw_hand;
 use crate::game::input::handle_input;
 use crate::game::player::{ Player, PlayerId };
 use crate::game::tile::{ Direction, Tile };
-use crate::game::ui::draw_turn_label;
+use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu_screen };
 
 use turbo::{ bounds, * };
 use turbo::os;
@@ -111,6 +111,11 @@ impl GameState {
         self.players.iter().find(|p| &p.id == player_id)
     }
 
+    /// Returns a reference to the Player struct for the current user, if any (public helper for use in other modules).
+    pub fn get_local_player_ref(&self) -> Option<&Player> {
+        self.get_local_player()
+    }
+
     /// Returns a mutable reference to the Player struct for the current user, if any.
     pub fn get_local_player_mut(&mut self) -> Option<&mut Player> {
         let player_id = self.user_id_to_player_id.get(&self.user)?;
@@ -128,6 +133,7 @@ impl GameState {
     }
 
     pub fn update(&mut self) {
+        clear(GAME_BG_COLOR);
         self.frame += 1;
         match self.scene {
             Scene::Menu => self.update_menu(),
@@ -153,7 +159,6 @@ impl GameState {
     }
 
     fn update_game(&mut self) {
-        self.frame += 1;
         if self.multiplayer_scene.is_none() {
             self.multiplayer_scene = Some(MultiplayerScene::MainMenu);
         }
@@ -204,21 +209,7 @@ impl GameState {
     }
 
     fn draw_menu(&self) {
-        clear(0x222222ff);
-        let canvas_bounds = bounds::screen();
-        let canvas_width = canvas_bounds.w();
-        let canvas_height = canvas_bounds.h();
-        let menu_items = ["Press SPACE to start"];
-        let font_height = 30; // Approximate height for "large" font
-        let total_height =
-            (menu_items.len() as u32) * font_height + ((menu_items.len() as u32) - 1) * 10;
-        let start_y = canvas_height / 2 - total_height / 2;
-        for (i, item) in menu_items.iter().enumerate() {
-            let text_width = (item.len() as u32) * 12; // Approximate width per char for "large" font
-            let x = canvas_width / 2 - text_width / 2;
-            let y = start_y + (i as u32) * (font_height + 10);
-            text!(item, x = x, y = y, font = "large", color = 0xffffffff);
-        }
+        draw_menu_screen();
     }
 
     fn draw_debug(&self) {
@@ -248,17 +239,17 @@ impl GameState {
     }
 
     fn draw_game(&self) {
-        clear(GAME_BG_COLOR);
         let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) =
             self.get_board_layout(false);
         draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
 
         if let Some(player) = self.get_local_player() {
             draw_hand(self, &player.hand, &self.selected_cards, tile_size, self.frame as f64);
-            draw_turn_label(self.is_my_turn(), tile_size);
+            draw_turn_label(self.is_my_turn(), self);
+        } else {
+            draw_waiting_for_players(self);
         }
-        if self.debug {
-            self.draw_debug();
-        }
+
+        self.draw_debug();
     }
 }
