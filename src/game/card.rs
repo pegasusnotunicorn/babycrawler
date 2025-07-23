@@ -1,7 +1,17 @@
 use crate::game::card_effect::CardEffect;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
-use crate::game::constants::{ GAME_PADDING, CARD_HOVER_COLOR };
+use crate::game::constants::{ GAME_PADDING, CARD_HOVER_COLOR, GAME_BG_COLOR, FLASH_SPEED };
+use bitflags::bitflags;
+
+bitflags! {
+    pub struct CardVisualState: u8 {
+        const NONE     = 0b0000;
+        const HOVERED  = 0b0001;
+        const SELECTED = 0b0010;
+        const DUMMY    = 0b0100;
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Card {
@@ -14,7 +24,6 @@ pub struct Card {
 const CARD_CONSTRUCTORS: &[fn() -> Card] = &[Card::move_card, Card::rotate_card, Card::swap_card];
 
 impl Card {
-    // toggle a card as selected
     pub fn toggle_selection(selected: &mut Vec<Card>, card: &Card) {
         if let Some(pos) = selected.iter().position(|c| c == card) {
             selected.remove(pos);
@@ -24,7 +33,6 @@ impl Card {
         }
     }
 
-    // get a random card
     pub fn random() -> Self {
         let index = (random::u32() as usize) % CARD_CONSTRUCTORS.len();
         (CARD_CONSTRUCTORS[index])()
@@ -57,7 +65,7 @@ impl Card {
         }
     }
 
-    pub fn draw_rect(
+    pub fn draw(
         &self,
         x: u32,
         y: u32,
@@ -65,8 +73,7 @@ impl Card {
         h: u32,
         outline_color: u32,
         outline: bool,
-        is_hovered: bool,
-        is_selected: bool,
+        visual_state: CardVisualState,
         frame: Option<f64>
     ) {
         let border_radius = GAME_PADDING / 2;
@@ -76,9 +83,10 @@ impl Card {
         let inner_y = y + inset;
         let inner_w = w.saturating_sub(border_width);
         let inner_h = h.saturating_sub(border_width);
+
         // Selected state: flashing outline
-        if is_selected {
-            let t: f64 = frame.unwrap_or(0.0) * crate::game::constants::FLASH_SPEED;
+        if visual_state.contains(CardVisualState::SELECTED) {
+            let t: f64 = frame.unwrap_or(0.0) * FLASH_SPEED;
             let t = t.sin() * 0.5 + 0.5;
             let alpha = (t * 255.0) as u32;
             let flash_color: u32 = (0xff << 24) | (0xff << 16) | (0xff << 8) | alpha;
@@ -87,16 +95,21 @@ impl Card {
             rect!(x = x, y = y, w = w, h = h, color = outline_color, border_radius = border_radius);
         }
         // Card fill
+        let fill_color = if visual_state.contains(CardVisualState::DUMMY) {
+            GAME_BG_COLOR
+        } else {
+            self.color
+        };
         rect!(
             x = inner_x,
             y = inner_y,
             w = inner_w,
             h = inner_h,
-            color = self.color,
+            color = fill_color,
             border_radius = border_radius
         );
         // Hover overlay
-        if is_hovered {
+        if visual_state.contains(CardVisualState::HOVERED) {
             let highlight_color = CARD_HOVER_COLOR;
             rect!(
                 x = inner_x,
@@ -106,6 +119,14 @@ impl Card {
                 color = highlight_color,
                 border_radius = border_radius
             );
+        }
+        // Draw label if not dummy
+        if !visual_state.contains(CardVisualState::DUMMY) {
+            let border_width = GAME_PADDING;
+            let inset = border_width / 2;
+            let label_x = x + inset + 4;
+            let label_y = y + inset + 4;
+            text!(&self.name, x = label_x, y = label_y, font = "large", color = 0x000000ff);
         }
     }
 }

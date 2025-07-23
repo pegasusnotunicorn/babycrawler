@@ -31,6 +31,23 @@ impl fmt::Display for PlayerId {
     }
 }
 
+#[derive(
+    Clone,
+    Debug,
+    borsh::BorshDeserialize,
+    borsh::BorshSerialize,
+    serde::Serialize,
+    serde::Deserialize
+)]
+pub struct DraggedCard {
+    pub card: Card,
+    pub hand_index: usize,
+    pub offset: (i32, i32), // pointer - card origin at drag start
+    pub pos: (f32, f32), // current position (for spring-back)
+    pub velocity: (f32, f32), // for spring-back
+    pub dragging: bool,
+}
+
 #[turbo::game]
 pub struct GameState {
     pub frame: usize,
@@ -46,6 +63,7 @@ pub struct GameState {
     pub current_turn_player_id: Option<String>, // Track whose turn it is (None if no turn)
     pub debug: bool,
     pub user_id_to_player_id: HashMap<String, PlayerId>,
+    pub dragged_card: Option<DraggedCard>,
 }
 
 impl GameState {
@@ -86,6 +104,7 @@ impl GameState {
             current_turn_player_id: None,
             debug,
             user_id_to_player_id: HashMap::new(),
+            dragged_card: None,
         }
     }
 
@@ -136,6 +155,50 @@ impl GameState {
     pub fn update(&mut self) {
         clear(GAME_BG_COLOR);
         self.frame += 1;
+        // Spring-back for dragged card
+        let mut clear_dragged = false;
+        if let Some(drag) = &mut self.dragged_card {
+            if !drag.dragging {
+                let hand_index = drag.hand_index;
+                let (px, py) = drag.pos;
+                let (vx, vy) = drag.velocity;
+                // Drop mutable borrow before calling self methods
+                drop(drag);
+                let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
+                    self.get_board_layout(false);
+                let (card_width, _card_height) = crate::game::hand::get_card_sizes(
+                    canvas_width,
+                    canvas_height
+                );
+                let (target_x, target_y) = crate::game::hand::get_card_position(
+                    hand_index,
+                    card_width
+                );
+                let dx = (target_x as f32) - px;
+                let dy = (target_y as f32) - py;
+                // Spring physics
+                let spring = 0.2;
+                let friction = 0.7;
+                let new_vx = vx * friction + dx * spring;
+                let new_vy = vy * friction + dy * spring;
+                let new_px = px + new_vx;
+                let new_py = py + new_vy;
+                if let Some(drag) = &mut self.dragged_card {
+                    drag.velocity.0 = new_vx;
+                    drag.velocity.1 = new_vy;
+                    drag.pos.0 = new_px;
+                    drag.pos.1 = new_py;
+                    // Snap to slot if close enough
+                    if dx.abs() < 1.0 && dy.abs() < 1.0 && new_vx.abs() < 0.5 && new_vy.abs() < 0.5 {
+                        drag.pos = (target_x as f32, target_y as f32);
+                        clear_dragged = true;
+                    }
+                }
+            }
+        }
+        if clear_dragged {
+            self.dragged_card = None;
+        }
         match self.scene {
             Scene::Menu => self.update_menu(),
             Scene::Game => self.update_game(),

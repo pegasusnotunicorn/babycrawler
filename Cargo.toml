@@ -10,6 +10,7 @@ user = "cd3c96b7-f6bc-4687-9561-133e9538a784"
 turbo = { version = "4.0.0-alpha.18", package = "turbo-genesis-sdk" }
 borsh = "1.3"
 serde = { version = "1.0", features = ["derive"] }
+bitflags = "1.3"
 
 [lib]
 crate-type = ["cdylib"]
