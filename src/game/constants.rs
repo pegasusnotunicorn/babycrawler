@@ -9,6 +9,8 @@ pub const PLAYER_1_COLOR: u32 = 0xff0000ff; // Red
 pub const PLAYER_2_COLOR: u32 = 0x3366ccff; // Blue
 pub const WALL_COLOR: u32 = 0x8b4513ff; // Brown
 pub const FLOOR_COLOR: u32 = 0x000000ff; // Black
+pub const PLAY_AREA_COLOR: u32 = 0xffffff20; // Light gray
+pub const CARD_HOVER_COLOR: u32 = 0xffffff80;
 
 // frame
 pub const FLASH_SPEED: f64 = 0.1; // smaller = slower

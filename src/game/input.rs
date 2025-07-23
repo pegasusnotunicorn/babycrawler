@@ -1,38 +1,47 @@
-use crate::game::tile::Tile;
 use crate::GameState;
+use crate::game::hand::hovered_card_index;
+use crate::game::tile::{ Tile, clear_highlights };
+use crate::game::card::Card;
 use turbo::*;
 
 pub fn handle_input(state: &mut GameState, pointer: &mouse::ScreenMouse, pointer_xy: (i32, i32)) {
-    // --- Card selection logic ---
+    handle_card_selection(state, pointer, pointer_xy);
+    handle_tile_selection(state, pointer, pointer_xy);
+}
+
+pub fn handle_card_selection(
+    state: &mut GameState,
+    pointer: &mouse::ScreenMouse,
+    pointer_xy: (i32, i32)
+) {
     if let Some(player) = state.get_local_player() {
         let hand = &player.hand;
-        let canvas_width = bounds::screen().w() - crate::game::constants::GAME_PADDING * 2;
-        let canvas_height = bounds::screen().h();
-        if
-            let Some(idx) = crate::game::hand::hovered_card_index(
-                hand,
-                pointer_xy,
-                canvas_width,
-                canvas_height
-            )
-        {
+        let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
+            state.get_board_layout(false);
+        if let Some(idx) = hovered_card_index(hand, pointer_xy, canvas_width, canvas_height) {
             if pointer.just_pressed() {
                 let card = hand[idx].clone();
-                crate::game::card::Card::toggle_selection(&mut state.selected_cards, &card);
+                Card::toggle_selection(&mut state.selected_cards, &card);
 
                 // Highlight tiles for the newly selected card
-                crate::game::tile::clear_highlights(&mut state.tiles);
+                clear_highlights(&mut state.tiles);
                 if state.selected_cards.len() == 1 {
                     let card = &state.selected_cards[0];
                     if let Some(player) = state.get_local_player() {
                         card.effect.highlight_tiles(player.position, &mut state.tiles);
                     }
                 }
-                return;
             }
         }
     }
-    // --- Tile/cell input logic (only if a card is selected) ---
+}
+
+pub fn handle_tile_selection(
+    state: &mut GameState,
+    pointer: &mouse::ScreenMouse,
+    pointer_xy: (i32, i32)
+) {
+    // Only if a card is selected
     if state.selected_cards.len() != 1 {
         return;
     }

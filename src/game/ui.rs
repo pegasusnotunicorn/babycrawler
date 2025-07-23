@@ -1,23 +1,16 @@
 use turbo::*;
 
 use crate::game::constants::GAME_PADDING;
-use crate::game::hand::hand_card_layout;
-use crate::game::constants::HAND_SIZE;
 
 /// Draws a message centered above the hand, in the same location as the turn label.
 pub fn draw_text(text: &str) {
     let canvas_bounds = bounds::screen();
     let canvas_width = canvas_bounds.w();
     let canvas_height = canvas_bounds.h();
-    let (_card_w, _card_h, hand_y, _offset_x) = hand_card_layout(
-        HAND_SIZE,
-        canvas_width,
-        canvas_height
-    );
     let font_height = 12;
     let bar_height = font_height + GAME_PADDING;
     // Place text bar just above the cards, with only GAME_PADDING as the gap
-    let text_y = hand_y - bar_height;
+    let text_y = canvas_height - bar_height - 8; // no idea why 8 is needed
     let text_x = GAME_PADDING * 2;
 
     let rect_x = GAME_PADDING;

@@ -12,6 +12,7 @@ use crate::game::input::handle_input;
 use crate::game::player::{ Player, PlayerId };
 use crate::game::tile::{ Direction, Tile };
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu_screen };
+use crate::game::play_area::draw_play_area;
 
 use turbo::{ bounds, * };
 use turbo::os;
@@ -239,12 +240,14 @@ impl GameState {
     }
 
     fn draw_game(&self) {
+        clear(GAME_BG_COLOR);
         let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) =
             self.get_board_layout(false);
         draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
+        draw_play_area(self);
 
         if let Some(player) = self.get_local_player() {
-            draw_hand(self, &player.hand, &self.selected_cards, tile_size, self.frame as f64);
+            draw_hand(self, &player.hand, &self.selected_cards, self.frame as f64);
             draw_turn_label(self.is_my_turn(), self);
         } else {
             draw_waiting_for_players(self);
