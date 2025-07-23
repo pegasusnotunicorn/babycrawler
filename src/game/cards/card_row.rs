@@ -1,6 +1,6 @@
-use crate::game::card::{ Card, CardVisualState };
-use crate::game::card_effect::CardEffect;
-use crate::game::card_slot::CardSlot;
+use crate::game::cards::card::{ Card, CardVisualState };
+use crate::game::cards::card_effect::CardEffect;
+use crate::game::cards::card_slot::CardSlot;
 use crate::game::constants::{ GAME_PADDING, HAND_SIZE, CARD_DUMMY_COLOR };
 use crate::game::util::point_in_bounds;
 

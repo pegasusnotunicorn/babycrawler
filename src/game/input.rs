@@ -1,8 +1,8 @@
 use crate::GameState;
-use crate::game::card::Card;
+use crate::game::cards::Card;
+use crate::game::cards::CardRow;
 use crate::game::constants::*;
-use crate::game::card_row::*;
-use crate::game::hand::{ get_hand_y, get_card_sizes };
+use crate::game::cards::{ get_hand_y, get_card_sizes };
 use crate::game::util::{
     point_in_bounds,
     rects_intersect_outline_to_inner,
@@ -10,7 +10,7 @@ use crate::game::util::{
     move_card_play_area_to_hand_with_spring_back,
     get_card_button_geometry,
 };
-use crate::game::tile::*;
+use crate::game::map::tile::*;
 use turbo::*;
 
 pub fn handle_input(state: &mut GameState, pointer: &mouse::ScreenMouse, pointer_xy: (i32, i32)) {

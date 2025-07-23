@@ -1,6 +1,5 @@
 use crate::game::constants::MAP_SIZE;
-use crate::game::tile::{ Tile, clear_highlights };
-use crate::game::player::Player;
+use crate::game::map::{ Tile, clear_highlights, Player };
 use crate::GameState;
 
 use turbo::*;

@@ -1,6 +1,6 @@
-use crate::game::hand::{ get_card_sizes, get_hand_y };
+use crate::game::cards::hand::{ get_card_sizes, get_hand_y };
 use crate::GameState;
-use crate::game::card_row::CardRow;
+use crate::game::cards::card_row::CardRow;
 use crate::game::constants::{
     GAME_PADDING,
     CARD_DUMMY_COLOR,
@@ -9,7 +9,7 @@ use crate::game::constants::{
 };
 use crate::game::util::rects_intersect_outline_to_inner;
 use turbo::mouse;
-use crate::game::card::{ Card, CardVisualState };
+use crate::game::cards::card::{ Card, CardVisualState };
 
 fn draw_card_buttons(x: u32, y: u32, w: u32, h: u32, pointer_xy: (i32, i32)) {
     let border_width = GAME_PADDING;

@@ -1,8 +1,8 @@
-use crate::game::card::{ Card, CardVisualState };
+use crate::game::cards::card::{ Card, CardVisualState };
 use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE };
 use turbo::*;
 use crate::GameState;
-use crate::game::card_row::CardRow;
+use crate::game::cards::card_row::CardRow;
 use crate::game::util::point_in_bounds;
 
 pub fn get_card_sizes(canvas_width: u32, canvas_height: u32) -> (u32, u32) {

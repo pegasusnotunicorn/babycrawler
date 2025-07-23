@@ -1,4 +1,4 @@
-use crate::game::card_effect::CardEffect;
+use crate::game::cards::card_effect::CardEffect;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 use crate::game::constants::{

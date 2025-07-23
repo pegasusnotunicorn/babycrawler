@@ -1,7 +1,7 @@
 use turbo::Bounds;
-use crate::game::card::Card;
-use crate::game::card_row::CardRow;
-use crate::game::hand::{ get_hand_y, get_card_sizes };
+use crate::game::cards::Card;
+use crate::game::cards::CardRow;
+use crate::game::cards::{ get_hand_y, get_card_sizes };
 use crate::game::constants::GAME_PADDING;
 
 pub fn point_in_bounds(x: i32, y: i32, bounds: &Bounds) -> bool {

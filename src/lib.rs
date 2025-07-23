@@ -4,16 +4,16 @@ use game_channel::game_server::{ GameToClient as GCToClient, GameToServer as GCT
 mod game;
 mod scene;
 
-use crate::game::board::draw_board;
-use crate::game::card::Card;
+use crate::game::map::draw_board;
+use crate::game::cards::Card;
 use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR };
 use crate::game::input::handle_input;
-use crate::game::player::{ Player, PlayerId };
-use crate::game::tile::{ Direction, Tile };
+use crate::game::map::{ Player, PlayerId };
+use crate::game::map::{ Direction, Tile };
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu_screen };
-use crate::game::play_area::draw_play_area;
+use crate::game::cards::draw_play_area;
 use crate::game::animation::update_spring_back_dragged_card;
-use crate::game::hand::draw_hand;
+use crate::game::cards::draw_hand;
 
 use turbo::{ bounds, * };
 use turbo::os;

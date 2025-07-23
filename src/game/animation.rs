@@ -1,6 +1,5 @@
 use crate::GameState;
-use crate::game::hand::get_card_sizes;
-use crate::game::hand::get_card_position;
+use crate::game::cards::{ get_card_sizes, get_card_position };
 
 /// Updates the spring-back animation for the dragged card. Returns true if the dragged card should be cleared.
 pub fn update_spring_back_dragged_card(state: &mut GameState) -> bool {
