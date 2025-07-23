@@ -9,6 +9,7 @@ use turbo::borsh::{ BorshDeserialize, BorshSerialize };
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub enum CardEffect {
+    Dummy,
     MoveOneTile,
     RotateCard,
     SwapCard,
@@ -24,6 +25,8 @@ impl CardEffect {
         let current_tile = tiles[current_index].clone();
 
         match self {
+            CardEffect::Dummy => {}
+
             CardEffect::MoveOneTile => {
                 for (i, tile) in tiles.iter_mut().enumerate() {
                     if current_tile.can_move_to(current_index, tile, i) {
@@ -48,6 +51,7 @@ impl CardEffect {
 
     pub fn apply_effect(&self, state: &mut GameState, tile_index: usize) {
         match self {
+            CardEffect::Dummy => {}
             CardEffect::MoveOneTile => self.apply_move_one_tile(state, tile_index),
             CardEffect::RotateCard => self.apply_rotate_card(state, tile_index),
             CardEffect::SwapCard => self.apply_swap_card(state, tile_index),
@@ -112,7 +116,7 @@ impl CardEffect {
     }
 
     fn end_turn(state: &mut GameState) {
-        state.selected_cards.clear();
+        state.selected_card = None;
         clear_highlights(&mut state.tiles);
         // let _ = DealCard.exec();
         // let _ = NextTurn.exec();

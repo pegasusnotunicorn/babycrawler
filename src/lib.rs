@@ -6,13 +6,14 @@ mod scene;
 
 use crate::game::board::draw_board;
 use crate::game::card::Card;
-use crate::game::constants::*;
-use crate::game::hand::draw_hand;
+use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR };
 use crate::game::input::handle_input;
 use crate::game::player::{ Player, PlayerId };
 use crate::game::tile::{ Direction, Tile };
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu_screen };
 use crate::game::play_area::draw_play_area;
+use crate::game::animation::update_spring_back_dragged_card;
+use crate::game::hand::draw_hand;
 
 use turbo::{ bounds, * };
 use turbo::os;
@@ -46,6 +47,14 @@ pub struct DraggedCard {
     pub pos: (f32, f32), // current position (for spring-back)
     pub velocity: (f32, f32), // for spring-back
     pub dragging: bool,
+    pub released: bool,
+}
+
+fn fill_with_dummies(vec: &mut Vec<Card>, size: usize) {
+    while vec.len() < size {
+        vec.push(Card::dummy_card());
+    }
+    vec.truncate(size);
 }
 
 #[turbo::game]
@@ -53,9 +62,8 @@ pub struct GameState {
     pub frame: usize,
     pub tiles: Vec<Tile>,
     pub players: Vec<Player>,
-    pub selected_cards: Vec<Card>,
+    pub selected_card: Option<Card>,
     pub scene: Scene, // Track current scene (menu or game)
-    // Multiplayer state
     pub user: String, // This client's user id
     pub online_now: usize, // Number of users online (matchmaking)
     pub in_lobby: Vec<String>, // Users in the current game lobby
@@ -64,6 +72,7 @@ pub struct GameState {
     pub debug: bool,
     pub user_id_to_player_id: HashMap<String, PlayerId>,
     pub dragged_card: Option<DraggedCard>,
+    pub play_area: Vec<Card>,
 }
 
 impl GameState {
@@ -95,7 +104,7 @@ impl GameState {
             frame: 0,
             tiles,
             players,
-            selected_cards: vec![],
+            selected_card: None,
             scene: Scene::Menu, // Start in menu scene
             user: String::new(), // Will be set on connect
             online_now: 0,
@@ -105,6 +114,11 @@ impl GameState {
             debug,
             user_id_to_player_id: HashMap::new(),
             dragged_card: None,
+            play_area: {
+                let mut play_area = Vec::new();
+                fill_with_dummies(&mut play_area, HAND_SIZE);
+                play_area
+            },
         }
     }
 
@@ -155,48 +169,8 @@ impl GameState {
     pub fn update(&mut self) {
         clear(GAME_BG_COLOR);
         self.frame += 1;
-        // Spring-back for dragged card
-        let mut clear_dragged = false;
-        if let Some(drag) = &mut self.dragged_card {
-            if !drag.dragging {
-                let hand_index = drag.hand_index;
-                let (px, py) = drag.pos;
-                let (vx, vy) = drag.velocity;
-                // Drop mutable borrow before calling self methods
-                drop(drag);
-                let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
-                    self.get_board_layout(false);
-                let (card_width, _card_height) = crate::game::hand::get_card_sizes(
-                    canvas_width,
-                    canvas_height
-                );
-                let (target_x, target_y) = crate::game::hand::get_card_position(
-                    hand_index,
-                    card_width
-                );
-                let dx = (target_x as f32) - px;
-                let dy = (target_y as f32) - py;
-                // Spring physics
-                let spring = 0.2;
-                let friction = 0.7;
-                let new_vx = vx * friction + dx * spring;
-                let new_vy = vy * friction + dy * spring;
-                let new_px = px + new_vx;
-                let new_py = py + new_vy;
-                if let Some(drag) = &mut self.dragged_card {
-                    drag.velocity.0 = new_vx;
-                    drag.velocity.1 = new_vy;
-                    drag.pos.0 = new_px;
-                    drag.pos.1 = new_py;
-                    // Snap to slot if close enough
-                    if dx.abs() < 1.0 && dy.abs() < 1.0 && new_vx.abs() < 0.5 && new_vy.abs() < 0.5 {
-                        drag.pos = (target_x as f32, target_y as f32);
-                        clear_dragged = true;
-                    }
-                }
-            }
-        }
-        if clear_dragged {
+        // Spring-back for dragged card (animation logic)
+        if update_spring_back_dragged_card(self) {
             self.dragged_card = None;
         }
         match self.scene {
@@ -291,9 +265,12 @@ impl GameState {
         let debug_str = format!("Current Turn Player ID: {}", current_turn_player_id);
         text!(&debug_str, x = 8, y = 8 + 15, font = "medium", color = 0xffffffff);
 
-        // draw selected cards
-        let selected_cards = &self.selected_cards;
-        let debug_str = format!("Selected Cards: {}", selected_cards.len());
+        // draw selected card
+        let selected_card = &self.selected_card;
+        let debug_str = format!(
+            "Selected Card: {:?}",
+            selected_card.as_ref().map(|c| c.name.clone())
+        );
         text!(&debug_str, x = 8, y = 8 + 30, font = "medium", color = 0xffffffff);
 
         // draw get_local_player
@@ -307,10 +284,10 @@ impl GameState {
         let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) =
             self.get_board_layout(false);
         draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
-        draw_play_area(self);
+        draw_play_area(self, self.frame as f64);
 
         if let Some(player) = self.get_local_player() {
-            draw_hand(self, &player.hand, &self.selected_cards, self.frame as f64);
+            draw_hand(self, &player.hand, &self.selected_card, self.frame as f64);
             draw_turn_label(self.is_my_turn(), self);
         } else {
             draw_waiting_for_players(self);

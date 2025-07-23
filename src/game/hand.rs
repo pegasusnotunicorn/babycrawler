@@ -1,8 +1,9 @@
-use crate::game::card::Card;
+use crate::game::card::{ Card, CardVisualState };
 use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE };
 use turbo::*;
 use crate::GameState;
-use crate::game::card::CardVisualState;
+use crate::game::card_row::CardRow;
+use crate::game::util::point_in_bounds;
 
 pub fn get_card_sizes(canvas_width: u32, canvas_height: u32) -> (u32, u32) {
     let card_width = (canvas_width - GAME_PADDING * ((HAND_SIZE as u32) + 1)) / (HAND_SIZE as u32);
@@ -38,14 +39,14 @@ pub fn hovered_card_index(
     for (i, _card) in hand.iter().enumerate() {
         let (x, y) = get_card_position(i, card_width);
         let bounds = Bounds::new(x, y, card_width, card_height);
-        if crate::game::util::point_in_bounds(mx, my, &bounds) {
+        if point_in_bounds(mx, my, &bounds) {
             return Some(i);
         }
     }
     None
 }
 
-pub fn draw_hand(state: &GameState, hand: &[Card], selected_cards: &[Card], frame: f64) {
+pub fn draw_hand(state: &GameState, hand: &[Card], selected_card: &Option<Card>, frame: f64) {
     if hand.is_empty() {
         return;
     }
@@ -54,42 +55,53 @@ pub fn draw_hand(state: &GameState, hand: &[Card], selected_cards: &[Card], fram
     let pointer_xy = (pointer.x, pointer.y);
     let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
         state.get_board_layout(false);
+
     let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
     let hovered = hovered_card_index(hand, pointer_xy, canvas_width, canvas_height);
 
     // If dragging, get dragged card info
-    let (dragged_index, dragged_card, dragged_pos) = if let Some(drag) = &state.dragged_card {
-        (Some(drag.hand_index), Some(&drag.card), Some(drag.pos))
-    } else {
-        (None, None, None)
+    let (dragged_index, actively_dragging) = match &state.dragged_card {
+        Some(drag) => (Some(drag.hand_index), drag.dragging),
+        None => (None, false),
     };
 
-    for (i, card) in hand.iter().enumerate() {
-        let (x, y) = get_card_position(i, card_width);
-        let is_hovered = hovered == Some(i);
-        let is_selected = selected_cards.contains(card);
-
+    // Build CardRow for the hand
+    let y = get_hand_y();
+    let mut row = CardRow::new(hand, y, card_width, card_height);
+    for (i, slot) in row.slots.iter_mut().enumerate() {
         let mut visual_state = CardVisualState::NONE;
-        if is_hovered && !dragged_index.is_some() {
+        if
+            hovered == Some(i) &&
+            !actively_dragging &&
+            selected_card.is_none() &&
+            slot.card
+                .as_ref()
+                .map(|c| !c.is_dummy())
+                .unwrap_or(false)
+        {
             visual_state |= CardVisualState::HOVERED;
         }
-        if is_selected {
-            visual_state |= CardVisualState::SELECTED;
+        if let (Some(selected), Some(card)) = (selected_card.as_ref(), slot.card.as_ref()) {
+            if selected == card {
+                visual_state |= CardVisualState::SELECTED;
+            }
         }
         if Some(i) == dragged_index {
             visual_state |= CardVisualState::DUMMY;
         }
-        card.draw(x, y, card_width, card_height, card.color, true, visual_state, Some(frame));
+        slot.visual_state = visual_state;
     }
+    row.draw(frame);
 
-    // Draw the dragged card
-    if let (Some(card), Some((dx, dy))) = (dragged_card, dragged_pos) {
-        card.draw(
+    // Draw the dragged card on top, if any
+    if let Some(drag) = &state.dragged_card {
+        let (dx, dy) = drag.pos;
+        drag.card.draw(
             dx as u32,
             dy as u32,
             card_width,
             card_height,
-            card.color,
+            drag.card.color,
             true,
             CardVisualState::NONE,
             Some(frame)

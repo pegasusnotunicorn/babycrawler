@@ -1,7 +1,13 @@
 use crate::game::card_effect::CardEffect;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
-use crate::game::constants::{ GAME_PADDING, CARD_HOVER_COLOR, GAME_BG_COLOR, FLASH_SPEED };
+use crate::game::constants::{
+    GAME_PADDING,
+    CARD_HOVER_FILL_COLOR,
+    GAME_BG_COLOR,
+    FLASH_SPEED,
+    CARD_DUMMY_COLOR,
+};
 use bitflags::bitflags;
 
 bitflags! {
@@ -24,12 +30,11 @@ pub struct Card {
 const CARD_CONSTRUCTORS: &[fn() -> Card] = &[Card::move_card, Card::rotate_card, Card::swap_card];
 
 impl Card {
-    pub fn toggle_selection(selected: &mut Vec<Card>, card: &Card) {
-        if let Some(pos) = selected.iter().position(|c| c == card) {
-            selected.remove(pos);
+    pub fn toggle_selection(selected: &mut Option<Card>, card: &Card) {
+        if selected.as_ref() == Some(card) {
+            *selected = None;
         } else {
-            selected.clear();
-            selected.push(card.clone());
+            *selected = Some(card.clone());
         }
     }
 
@@ -65,6 +70,58 @@ impl Card {
         }
     }
 
+    pub fn dummy_card() -> Self {
+        Self {
+            id: 0,
+            name: String::new(),
+            effect: CardEffect::Dummy,
+            color: CARD_DUMMY_COLOR,
+        }
+    }
+
+    pub fn is_dummy(&self) -> bool {
+        self.id == 0
+    }
+
+    pub fn draw_button(
+        label: &str,
+        x: u32,
+        y: u32,
+        w: u32,
+        h: u32,
+        fill_color: u32,
+        hovered: bool
+    ) {
+        // Draw button outline (black)
+        rect!(x = x, y = y, w = w, h = h, color = 0x000000ff, border_radius = h / 3);
+        // Draw button fill (slightly inset)
+        let inset = 2;
+        rect!(
+            x = x + inset,
+            y = y + inset,
+            w = w.saturating_sub(inset * 2),
+            h = h.saturating_sub(inset * 2),
+            color = fill_color,
+            border_radius = h / 3 - 1
+        );
+        // Draw hover overlay if hovered
+        if hovered {
+            rect!(
+                x = x + inset,
+                y = y + inset,
+                w = w.saturating_sub(inset * 2),
+                h = h.saturating_sub(inset * 2),
+                color = CARD_HOVER_FILL_COLOR,
+                border_radius = h / 3 - 1
+            );
+        }
+        // Draw label centered
+        // For horizontal centering, estimate font width as w/2 (since it's a single char)
+        let label_x = x + w / 2 - w / 8;
+        let label_y = y + h / 2 - h / 5;
+        text!(label, x = label_x, y = label_y, font = "large", color = 0xffffffff);
+    }
+
     pub fn draw(
         &self,
         x: u32,
@@ -83,7 +140,6 @@ impl Card {
         let inner_y = y + inset;
         let inner_w = w.saturating_sub(border_width);
         let inner_h = h.saturating_sub(border_width);
-
         // Selected state: flashing outline
         if visual_state.contains(CardVisualState::SELECTED) {
             let t: f64 = frame.unwrap_or(0.0) * FLASH_SPEED;
@@ -108,9 +164,9 @@ impl Card {
             color = fill_color,
             border_radius = border_radius
         );
-        // Hover overlay
+        // Always draw hover overlay if HOVERED is set (even for dummy)
         if visual_state.contains(CardVisualState::HOVERED) {
-            let highlight_color = CARD_HOVER_COLOR;
+            let highlight_color = CARD_HOVER_FILL_COLOR;
             rect!(
                 x = inner_x,
                 y = inner_y,
