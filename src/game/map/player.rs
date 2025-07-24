@@ -1,6 +1,6 @@
 use crate::game::constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR };
 use crate::game::map::tile::Tile;
-use crate::game::cards::Card;
+use crate::game::cards::card::Card;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 

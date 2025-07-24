@@ -3,7 +3,7 @@ use serde::{ Serialize, Deserialize };
 use turbo::borsh::{ BorshSerialize, BorshDeserialize };
 
 #[turbo::program]
-pub mod game_server {
+pub mod server {
     use super::*;
 
     #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone)]

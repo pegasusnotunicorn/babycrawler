@@ -1,4 +1,4 @@
-use crate::game::card::{ Card, CardVisualState };
+use crate::game::cards::card::{ Card, CardVisualState };
 
 #[derive(Clone, Debug)]
 pub struct CardSlot {

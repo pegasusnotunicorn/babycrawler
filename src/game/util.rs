@@ -1,8 +1,5 @@
 use turbo::Bounds;
-use crate::game::cards::Card;
-use crate::game::cards::CardRow;
-use crate::game::cards::{ get_hand_y, get_card_sizes };
-use crate::game::constants::GAME_PADDING;
+use crate::game::cards::card::Card;
 
 pub fn point_in_bounds(x: i32, y: i32, bounds: &Bounds) -> bool {
     let bx = bounds.x();
@@ -71,40 +68,6 @@ pub fn spring_back_card(
         dragging: false,
         released: true,
     });
-}
-
-/// Moves a card from the play area to the first empty hand slot, updates state, and sets up spring-back animation.
-pub fn move_card_play_area_to_hand_with_spring_back(
-    state: &mut crate::GameState,
-    play_area_idx: usize,
-    selected: &crate::game::card::Card
-) -> bool {
-    // Compute all needed values before mutating state
-    let play_area_cards = state.play_area.clone();
-    let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
-        state.get_board_layout(false);
-    let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
-    let hand_y = get_hand_y() as i32;
-    let play_area_y = hand_y + (card_height as i32) + (GAME_PADDING as i32);
-    let play_area_row = CardRow::new(
-        &play_area_cards,
-        play_area_y as u32,
-        card_width as u32,
-        card_height as u32
-    );
-    let (from_x, from_y) = play_area_row.get_slot_position(play_area_idx);
-    if let Some(player) = state.get_local_player_mut() {
-        let empty_idx = player.hand.iter().position(|c| c.id == 0);
-        if let Some(empty_idx) = empty_idx {
-            player.hand[empty_idx] = selected.clone();
-            if let Some(slot) = state.play_area.get_mut(play_area_idx) {
-                *slot = Card::dummy_card();
-            }
-            spring_back_card(state, selected.clone(), empty_idx, from_x, from_y);
-            return true;
-        }
-    }
-    false
 }
 
 pub struct CardButtonGeometry {
