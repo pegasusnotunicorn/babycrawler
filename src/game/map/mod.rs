@@ -1,6 +1,7 @@
 pub mod board;
 pub mod tile;
 pub mod player;
+pub mod tile_input;
 
 pub use board::*;
 pub use tile::*;

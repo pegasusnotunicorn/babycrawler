@@ -18,11 +18,15 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: PlayerId, x: usize, y: usize) -> Self {
+    pub fn new(id: PlayerId, x: usize, y: usize, hand_size: usize) -> Self {
+        let mut hand = Vec::new();
+        for _ in 0..hand_size {
+            hand.push(Card::random());
+        }
         Self {
             id,
             position: (x, y),
-            hand: vec![],
+            hand,
         }
     }
 

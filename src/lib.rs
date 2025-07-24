@@ -1,6 +1,6 @@
 mod game_channel;
-use game_channel::server::GameChannel;
-use game_channel::server::{ GameToClient as GCToClient, GameToServer as GCToServer };
+use game_channel::GameChannel;
+use game_channel::{ GameToClient as GCToClient, GameToServer as GCToServer };
 mod game;
 mod scene;
 
@@ -8,12 +8,14 @@ use crate::game::map::draw_board;
 use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR };
 use crate::game::input::handle_input;
 use crate::game::map::{ Player, PlayerId };
-use crate::game::map::{ Direction, Tile };
+use crate::game::map::Tile;
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu_screen };
 use crate::game::cards::draw_play_area;
 use crate::game::animation::update_spring_back_dragged_card;
 use crate::game::cards::draw_hand;
 use crate::game::cards::card::Card;
+use crate::game::debug::draw_debug;
+use crate::game::animation::update_tile_rotation_animations;
 
 use turbo::{ bounds, * };
 use turbo::os;
@@ -79,31 +81,10 @@ impl GameState {
     pub fn new() -> Self {
         let debug = true; // Hardcoded for development
 
-        let mut tiles = vec![];
-        for _ in 0..MAP_SIZE * MAP_SIZE {
-            let mut entrances = vec![];
-            for dir in &[Direction::Up, Direction::Down, Direction::Left, Direction::Right] {
-                if random::bool() == true {
-                    entrances.push(*dir);
-                }
-            }
-            tiles.push(Tile::new(entrances));
-        }
-
-        let mut players = vec![
-            Player::new(PlayerId::Player1, 0, 0),
-            Player::new(PlayerId::Player2, MAP_SIZE - 1, MAP_SIZE - 1)
-        ];
-        for player in &mut players {
-            for _ in 0..HAND_SIZE {
-                player.hand.push(Card::random());
-            }
-        }
-
         Self {
             frame: 0,
-            tiles,
-            players,
+            tiles: Vec::new(),
+            players: Vec::new(),
             selected_card: None,
             scene: Scene::Menu, // Start in menu scene
             user: String::new(), // Will be set on connect
@@ -173,11 +154,13 @@ impl GameState {
         if update_spring_back_dragged_card(self) {
             self.dragged_card = None;
         }
+        // Update tile rotation animations
+        update_tile_rotation_animations(self, 1.0 / 60.0);
         match self.scene {
             Scene::Menu => self.update_menu(),
             Scene::Game => self.update_game(),
         }
-        self.draw_debug();
+        draw_debug(self);
     }
 
     fn update_menu(&mut self) {
@@ -221,62 +204,36 @@ impl GameState {
                             );
                         }
                     }
+                    GCToClient::BoardState { tiles, players } => {
+                        log!("Board state received: {:?}", tiles.len());
+                        self.tiles = tiles;
+                        self.players = players;
+                    }
                     // handle other variants if needed
                 }
             }
 
-            // Draw the full game for both players
             self.draw_game();
 
             let is_my_turn = self.is_my_turn();
             if is_my_turn {
-                // Only allow input for the active player
                 let pointer = mouse::screen();
                 let pointer_xy = (pointer.x, pointer.y);
                 handle_input(self, &pointer, pointer_xy);
-                let gp = gamepad::get(0);
-                if gp.a.just_pressed() {
-                    let _ = conn.send(&GCToServer::EndTurn);
-                    log!("EndTurn");
+
+                if self.debug {
+                    let gp = gamepad::get(0);
+                    if gp.a.just_pressed() {
+                        let _ = conn.send(&GCToServer::EndTurn);
+                        log!("End turn sent");
+                    }
                 }
-            } else {
-                // Input is disabled for the non-active player
-                // (No handle_input or end turn allowed)
             }
         }
     }
 
     fn draw_menu(&self) {
         draw_menu_screen();
-    }
-
-    fn draw_debug(&self) {
-        if !self.debug {
-            return;
-        }
-
-        // draw user id
-        let id = &self.user;
-        let debug_str = format!("Player ID: {}", id);
-        text!(&debug_str, x = 8, y = 8, font = "medium", color = 0xffffffff);
-
-        // draw current turn player id
-        let current_turn_player_id = self.current_turn_player_id.as_deref().unwrap_or("None");
-        let debug_str = format!("Current Turn Player ID: {}", current_turn_player_id);
-        text!(&debug_str, x = 8, y = 8 + 15, font = "medium", color = 0xffffffff);
-
-        // draw selected card
-        let selected_card = &self.selected_card;
-        let debug_str = format!(
-            "Selected Card: {:?}",
-            selected_card.as_ref().map(|c| c.name.clone())
-        );
-        text!(&debug_str, x = 8, y = 8 + 30, font = "medium", color = 0xffffffff);
-
-        // draw get_local_player
-        let local_player = self.get_local_player();
-        let debug_str = format!("Local Player: {:?}", local_player);
-        text!(&debug_str, x = 8, y = 8 + 45, font = "medium", color = 0xffffffff);
     }
 
     fn draw_game(&self) {
@@ -293,6 +250,6 @@ impl GameState {
             draw_waiting_for_players(self);
         }
 
-        self.draw_debug();
+        draw_debug(self);
     }
 }

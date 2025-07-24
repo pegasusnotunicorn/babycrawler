@@ -17,10 +17,7 @@ pub enum CardEffect {
 
 impl CardEffect {
     pub fn highlight_tiles(&self, player_pos: (usize, usize), tiles: &mut [Tile]) {
-        clear_highlights(tiles);
-
-        let (px, py) = player_pos;
-        let current_index = Tile::index(px, py);
+        let current_index = player_pos.1 * MAP_SIZE + player_pos.0;
         let current_tile = tiles[current_index].clone();
 
         match self {
@@ -35,6 +32,10 @@ impl CardEffect {
             }
 
             CardEffect::RotateCard => {
+                // Store current rotation for all tiles
+                for tile in tiles.iter_mut() {
+                    tile.original_rotation = tile.current_rotation;
+                }
                 for i in Tile::get_adjacent_indices(current_index, true, true) {
                     tiles[i].is_highlighted = true;
                 }
@@ -77,8 +78,7 @@ impl CardEffect {
 
     fn apply_rotate_card(&self, state: &mut GameState, tile_index: usize) {
         if state.tiles[tile_index].is_highlighted {
-            state.tiles[tile_index].rotate_clockwise(1);
-            Self::end_turn(state);
+            crate::game::animation::start_tile_rotation_animation(state, tile_index, true, 0.25);
         }
     }
 
@@ -119,5 +119,18 @@ impl CardEffect {
         clear_highlights(&mut state.tiles);
         // let _ = DealCard.exec();
         // let _ = NextTurn.exec();
+    }
+
+    // Add a function to revert all tiles to their original_rotation
+    pub fn revert_tile_rotations(tiles: &mut [Tile]) {
+        for tile in tiles.iter_mut() {
+            let current = tile.current_rotation as i32;
+            let orig = tile.original_rotation as i32;
+            let diff = (4 + orig - current) % 4;
+            if diff > 0 {
+                tile.rotate_clockwise(diff as usize);
+            }
+            tile.rotation_anim = None;
+        }
     }
 }

@@ -1,12 +1,35 @@
-use crate::game::constants::{ FLASH_SPEED, FLOOR_COLOR, MAP_SIZE, WALL_COLOR };
+use crate::game::constants::{
+    FLASH_SPEED,
+    FLOOR_COLOR,
+    MAP_SIZE,
+    WALL_COLOR,
+    ENTRANCE_COUNT_WEIGHT_1,
+    ENTRANCE_COUNT_WEIGHT_2,
+    ENTRANCE_COUNT_WEIGHT_3,
+    ENTRANCE_COUNT_WEIGHT_4,
+};
 use crate::game::util::lerp_color;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Deserialize, Serialize };
 
-#[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Tile {
     pub entrances: Vec<Direction>,
     pub is_highlighted: bool,
+    #[serde(skip, default)]
+    pub rotation_anim: Option<TileRotationAnim>,
+    pub original_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
+    pub current_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
+}
+
+#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+pub struct TileRotationAnim {
+    pub from_angle: f32,
+    pub to_angle: f32,
+    pub current_angle: f32,
+    pub duration: f64,
+    pub elapsed: f64,
+    pub clockwise: bool,
 }
 
 #[derive(
@@ -32,7 +55,37 @@ impl Tile {
         Self {
             entrances,
             is_highlighted: false,
+            rotation_anim: None,
+            original_rotation: 0,
+            current_rotation: 0,
         }
+    }
+
+    pub fn random(forbidden: &[Direction]) -> Self {
+        use crate::game::map::tile::Direction::*;
+        let all_directions = [Up, Down, Left, Right];
+        let allowed: Vec<Direction> = all_directions
+            .iter()
+            .cloned()
+            .filter(|d| !forbidden.contains(d))
+            .collect();
+        let max_count = allowed.len().max(1); // always at least 1
+        let all_weights = [
+            ENTRANCE_COUNT_WEIGHT_1,
+            ENTRANCE_COUNT_WEIGHT_2,
+            ENTRANCE_COUNT_WEIGHT_3,
+            ENTRANCE_COUNT_WEIGHT_4,
+        ];
+        let weights = &all_weights[..max_count];
+        let entrance_count = random_weighted_entrance_count_dynamic(weights) as usize;
+        let mut dirs = allowed.clone();
+        random::shuffle(&mut dirs);
+        let mut entrances = dirs.into_iter().take(entrance_count).collect::<Vec<_>>();
+        // Ensure at least one entrance
+        if entrances.is_empty() && !allowed.is_empty() {
+            entrances.push(allowed[(random::u32() as usize) % allowed.len()]);
+        }
+        Tile::new(entrances)
     }
 
     /// Given a tile index, return (x, y)
@@ -149,6 +202,7 @@ impl Tile {
                 }
             })
             .collect();
+        self.current_rotation = (self.current_rotation + (times as u8)) % 4;
     }
 
     /// Draws the tile, including walls and floor and optional highlight pulse
@@ -166,58 +220,87 @@ impl Tile {
             WALL_COLOR
         };
 
+        let angle = self.rotation_anim
+            .as_ref()
+            .map(|a| a.current_angle)
+            .unwrap_or(0.0) as i32;
+        let seg = ts / 3;
+
         // 🔳 Step 1: Draw outer border walls
-        rect!(x = x, y = y, w = tile_size, h = tile_size, color = wall_color);
+        rect!(x = x, y = y, w = tile_size, h = tile_size, color = wall_color, rotation = angle);
 
         // 🟥 Step 2: Inner floor
-        rect!(x = inner_x, y = inner_y, w = inner_size, h = inner_size, color = FLOOR_COLOR);
+        rect!(
+            x = inner_x,
+            y = inner_y,
+            w = inner_size,
+            h = inner_size,
+            color = FLOOR_COLOR,
+            rotation = angle
+        );
 
-        // 🔲 Step 3: Draw entrances as gaps in walls
-        let seg = ts / 3;
-        for dir in &self.entrances {
-            match dir {
-                Direction::Up => {
-                    rect!(
-                        x = x + seg,
-                        y = y,
-                        w = ts - seg * 2,
-                        h = wall_width,
-                        color = FLOOR_COLOR
-                    );
-                }
-                Direction::Down => {
-                    rect!(
-                        x = x + seg,
-                        y = y + ts - wall_width,
-                        w = ts - seg * 2,
-                        h = wall_width,
-                        color = FLOOR_COLOR
-                    );
-                }
-                Direction::Left => {
-                    rect!(
-                        x = x,
-                        y = y + seg,
-                        w = wall_width,
-                        h = ts - seg * 2,
-                        color = FLOOR_COLOR
-                    );
-                }
-                Direction::Right => {
-                    rect!(
-                        x = x + ts - wall_width,
-                        y = y + seg,
-                        w = wall_width,
-                        h = ts - seg * 2,
-                        color = FLOOR_COLOR
-                    );
+        // 🔲 Step 3: Draw entrances as gaps in walls (only if not animating)
+        if self.rotation_anim.is_none() {
+            for dir in &self.entrances {
+                match dir {
+                    Direction::Up => {
+                        rect!(
+                            x = x + seg,
+                            y = y,
+                            w = ts - seg * 2,
+                            h = wall_width,
+                            color = FLOOR_COLOR,
+                            rotation = angle
+                        );
+                    }
+                    Direction::Down => {
+                        rect!(
+                            x = x + seg,
+                            y = y + ts - wall_width,
+                            w = ts - seg * 2,
+                            h = wall_width,
+                            color = FLOOR_COLOR,
+                            rotation = angle
+                        );
+                    }
+                    Direction::Left => {
+                        rect!(
+                            x = x,
+                            y = y + seg,
+                            w = wall_width,
+                            h = ts - seg * 2,
+                            color = FLOOR_COLOR,
+                            rotation = angle
+                        );
+                    }
+                    Direction::Right => {
+                        rect!(
+                            x = x + ts - wall_width,
+                            y = y + seg,
+                            w = wall_width,
+                            h = ts - seg * 2,
+                            color = FLOOR_COLOR,
+                            rotation = angle
+                        );
+                    }
                 }
             }
         }
     }
 }
 
-/// Helper function to turn off all highlights
+fn random_weighted_entrance_count_dynamic(weights: &[f32]) -> u8 {
+    let total: f32 = weights.iter().sum();
+    let mut pick = random::f32() * total;
+    for (i, &weight) in weights.iter().enumerate() {
+        if pick < weight {
+            return (i + 1) as u8;
+        }
+        pick -= weight;
+    }
+    weights.len() as u8 // fallback, should not happen
+}
+
 pub fn clear_highlights(tiles: &mut [Tile]) {
     for tile in tiles.iter_mut() {
         tile.is_highlighted = false;

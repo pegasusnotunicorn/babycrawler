@@ -251,9 +251,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.140"
+version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
+checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
 dependencies = [
  "itoa",
  "memchr",
@@ -309,9 +309,9 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "turbo-genesis-abi"
-version = "1.0.0-alpha.4"
+version = "1.0.0-alpha.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eac91404903e79ce23b7d06844ad69d31214b65b4a59b3d279e5fda02c0b133c"
+checksum = "2af14b63729bc016dfd367c9a22367277b6f02a33c85f4363a9266abcf146ca2"
 dependencies = [
  "borsh",
  "num-traits",
@@ -327,9 +327,9 @@ checksum = "8d367e205e4a5a21a41a26d9706661e1cb34ba665f1fa9a4d9624e359e6fcae9"
 
 [[package]]
 name = "turbo-genesis-macros"
-version = "1.0.0-alpha.2"
+version = "1.0.0-alpha.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33e8b24968b2ec836ffdbb17c8d39138305fe3dda29fbb1b85ab0961033e9447"
+checksum = "686caefb82f903ecabc3f40f07a6cb524858260f431969c66a2061b6b4bde1c8"
 dependencies = [
  "base64",
  "proc-macro2",
@@ -345,9 +345,9 @@ dependencies = [
 
 [[package]]
 name = "turbo-genesis-sdk"
-version = "4.0.0-alpha.21"
+version = "4.0.0-alpha.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d170270ca5d2f6dc27dfa20a7f9bc3a64640dbc56f17da80705ed775428f2257"
+checksum = "9dd451cc4311c212b23f15445ddcc945b412e0b2027fb279add9b054f85e2164"
 dependencies = [
  "base64",
  "borsh",

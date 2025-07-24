@@ -5,3 +5,4 @@ pub mod constants;
 pub mod util;
 pub mod ui;
 pub mod animation;
+pub mod debug;
