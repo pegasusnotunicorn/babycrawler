@@ -1,33 +1,11 @@
 use crate::game::cards::hand::{ get_card_sizes, get_hand_y };
 use crate::GameState;
 use crate::game::cards::card_row::CardRow;
-use crate::game::constants::{
-    GAME_PADDING,
-    CARD_DUMMY_COLOR,
-    CARD_BUTTON_A_COLOR,
-    CARD_BUTTON_B_COLOR,
-};
+use crate::game::constants::{ GAME_PADDING, CARD_DUMMY_COLOR };
 use crate::game::util::rects_intersect_outline_to_inner;
 use turbo::mouse;
 use crate::game::cards::card::{ Card, CardVisualState };
-
-fn draw_card_buttons(x: u32, y: u32, w: u32, h: u32, pointer_xy: (i32, i32)) {
-    let border_width = GAME_PADDING;
-    let inset = border_width / 2;
-    let button_w = (w - GAME_PADDING * 3) / 2;
-    let button_h = button_w;
-    let button_y = y + h - inset - button_h;
-    let pointer_bounds = turbo::Bounds::new(pointer_xy.0 as u32, pointer_xy.1 as u32, 1, 1);
-    let button_specs = [
-        ("B", CARD_BUTTON_A_COLOR, x + inset + GAME_PADDING / 2),
-        ("A", CARD_BUTTON_B_COLOR, x + w - inset - GAME_PADDING / 2 - button_w),
-    ];
-    for (label, color, bx) in button_specs {
-        let bounds = turbo::Bounds::new(bx, button_y, button_w, button_h);
-        let hovered = bounds.contains(&pointer_bounds);
-        Card::draw_button(label, bx, button_y, button_w, button_h, color, hovered);
-    }
-}
+use crate::game::cards::card::draw_card_buttons;
 
 pub fn draw_play_area(state: &GameState, frame: f64) {
     let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
@@ -38,31 +16,25 @@ pub fn draw_play_area(state: &GameState, frame: f64) {
     let mut play_area_row = CardRow::new(&state.play_area, y, card_width, card_height);
 
     // Highlight leftmost empty slot if dragging from hand
-    if let Some(drag) = &state.dragged_card {
-        if !drag.released {
-            let dragging_from_hand = state.play_area
-                .get(drag.hand_index)
-                .map(|c| c != &drag.card)
-                .unwrap_or(true);
-            if dragging_from_hand {
-                if let Some(idx) = play_area_row.leftmost_card_index(true) {
-                    let (slot_x, slot_y) = play_area_row.get_slot_position(idx);
-                    let border_width = GAME_PADDING;
-                    if
-                        rects_intersect_outline_to_inner(
-                            slot_x,
-                            slot_y,
-                            card_width,
-                            card_height,
-                            drag.pos.0 as u32,
-                            drag.pos.1 as u32,
-                            card_width,
-                            card_height,
-                            border_width
-                        )
-                    {
-                        play_area_row.slots[idx].visual_state |= CardVisualState::HOVERED;
-                    }
+    if let Some(drag) = &state.animated_card {
+        if drag.dragging {
+            if let Some(idx) = play_area_row.leftmost_card_index(true) {
+                let (slot_x, slot_y) = play_area_row.get_slot_position(idx);
+                let border_width = GAME_PADDING;
+                if
+                    rects_intersect_outline_to_inner(
+                        slot_x,
+                        slot_y,
+                        card_width,
+                        card_height,
+                        drag.pos.0 as u32,
+                        drag.pos.1 as u32,
+                        card_width,
+                        card_height,
+                        border_width
+                    )
+                {
+                    play_area_row.slots[idx].visual_state |= CardVisualState::HOVERED;
                 }
             }
         }
@@ -96,6 +68,7 @@ pub fn draw_play_area(state: &GameState, frame: f64) {
             if show_buttons {
                 let w = play_area_row.card_width;
                 let h = play_area_row.card_height;
+                visual_state |= CardVisualState::SELECTED;
                 card.draw(x, y, w, h, outline_color, true, visual_state, Some(frame));
                 draw_card_buttons(x, y, w, h, pointer_xy);
             } else {

@@ -1,5 +1,4 @@
 use turbo::Bounds;
-use crate::game::cards::card::Card;
 
 pub fn point_in_bounds(x: i32, y: i32, bounds: &Bounds) -> bool {
     let bx = bounds.x();
@@ -49,25 +48,6 @@ pub fn rects_intersect_outline_to_inner(
     let slot_bounds = turbo::Bounds::new(slot_inner_x, slot_inner_y, slot_inner_w, slot_inner_h);
     let drag_bounds = turbo::Bounds::new(drag_x, drag_y, drag_w, drag_h);
     slot_bounds.intersects(&drag_bounds)
-}
-
-/// Sets up a spring-back animation for a card from (from_x, from_y) to the hand slot at (to_x, to_y).
-pub fn spring_back_card(
-    state: &mut crate::GameState,
-    card: Card,
-    hand_index: usize,
-    from_x: u32,
-    from_y: u32
-) {
-    state.dragged_card = Some(crate::DraggedCard {
-        card,
-        hand_index,
-        offset: (0, 0),
-        pos: (from_x as f32, from_y as f32),
-        velocity: (0.0, 0.0),
-        dragging: false,
-        released: true,
-    });
 }
 
 pub struct CardButtonGeometry {

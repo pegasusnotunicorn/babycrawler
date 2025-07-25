@@ -1,42 +1,89 @@
 use crate::GameState;
-use crate::game::cards::{ get_card_sizes, get_card_position };
 use crate::game::map::tile::TileRotationAnim;
 
-/// Updates the spring-back animation for the dragged card. Returns true if the dragged card should be cleared.
-pub fn update_spring_back_dragged_card(state: &mut GameState) -> bool {
-    let mut clear_dragged = false;
-    if let Some(drag) = &mut state.dragged_card {
-        if !drag.dragging {
-            let hand_index = drag.hand_index;
-            let (px, py) = drag.pos;
-            let (vx, vy) = drag.velocity;
-            let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
-                state.get_board_layout(false);
-            let (card_width, _card_height) = get_card_sizes(canvas_width, canvas_height);
-            let (target_x, target_y) = get_card_position(hand_index, card_width);
-            let dx = (target_x as f32) - px;
-            let dy = (target_y as f32) - py;
-            // Spring physics
-            let spring = 0.2;
-            let friction = 0.7;
-            let new_vx = vx * friction + dx * spring;
-            let new_vy = vy * friction + dy * spring;
-            let new_px = px + new_vx;
-            let new_py = py + new_vy;
-            if let Some(drag) = &mut state.dragged_card {
-                drag.velocity.0 = new_vx;
-                drag.velocity.1 = new_vy;
-                drag.pos.0 = new_px;
-                drag.pos.1 = new_py;
-                // Snap to slot if close enough
-                if dx.abs() < 1.0 && dy.abs() < 1.0 && new_vx.abs() < 0.5 && new_vy.abs() < 0.5 {
-                    drag.pos = (target_x as f32, target_y as f32);
-                    clear_dragged = true;
-                }
+pub fn update_animations(state: &mut GameState) {
+    if update_animated_card_spring(state) {
+        handle_animated_card_complete(state);
+    }
+    update_tile_rotation_animations(state, 1.0 / 60.0);
+}
+
+/// Generic spring-to-target function for 2D positions.
+pub fn spring_to_target(
+    pos: (f32, f32),
+    velocity: (f32, f32),
+    target: (f32, f32),
+    spring: f32,
+    friction: f32,
+    snap_distance: f32,
+    snap_velocity: f32
+) -> ((f32, f32), (f32, f32), bool) {
+    let (px, py) = pos;
+    let (vx, vy) = velocity;
+    let (target_x, target_y) = target;
+    let dx = target_x - px;
+    let dy = target_y - py;
+    let new_vx = vx * friction + dx * spring;
+    let new_vy = vy * friction + dy * spring;
+    let new_px = px + new_vx;
+    let new_py = py + new_vy;
+    let snapped =
+        dx.abs() < snap_distance &&
+        dy.abs() < snap_distance &&
+        new_vx.abs() < snap_velocity &&
+        new_vy.abs() < snap_velocity;
+    let final_pos = if snapped { (target_x, target_y) } else { (new_px, new_py) };
+    let final_velocity = (new_vx, new_vy);
+    (final_pos, final_velocity, snapped)
+}
+
+/// Updates the spring animation for the animated card. Returns true if the animation is complete.
+pub fn update_animated_card_spring(state: &mut GameState) -> bool {
+    let mut clear_animated = false;
+    if let Some(anim) = &mut state.animated_card {
+        if anim.animating && !anim.dragging {
+            let (new_pos, new_velocity, snapped) = spring_to_target(
+                anim.pos,
+                anim.velocity,
+                anim.target_pos,
+                0.2, // spring
+                0.6, // friction
+                1.0, // snap_distance
+                0.5 // snap_velocity
+            );
+            anim.pos = new_pos;
+            anim.velocity = new_velocity;
+            if snapped {
+                clear_animated = true;
             }
         }
     }
-    clear_dragged
+    clear_animated
+}
+
+pub fn handle_animated_card_complete(state: &mut crate::GameState) {
+    let animated = state.animated_card.as_ref().cloned();
+    if let Some(drag) = animated {
+        if drag.target_row == crate::AnimatedCardOrigin::PlayArea {
+            state.play_area.insert(drag.target_row_index, drag.card.clone());
+            state.selected_card = Some(drag.card.clone());
+            highlight_selected_card_tiles(state);
+        } else if drag.target_row == crate::AnimatedCardOrigin::Hand {
+            state.get_local_player_mut().unwrap().hand[drag.target_row_index] = drag.card.clone();
+        }
+    }
+    state.animated_card = None;
+}
+
+// Highlight tiles for the newly selected card
+pub fn highlight_selected_card_tiles(state: &mut GameState) {
+    let selected_card = state.selected_card.clone();
+    crate::game::map::tile::clear_highlights(&mut state.tiles);
+    if let Some(card) = &selected_card {
+        if let Some(player) = state.get_local_player() {
+            card.effect.highlight_tiles(player.position, &mut state.tiles);
+        }
+    }
 }
 
 /// Starts a tile rotation animation for a given tile index.

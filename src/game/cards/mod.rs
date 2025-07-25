@@ -7,5 +7,5 @@ pub mod play_area;
 pub mod card_input;
 
 pub use card_row::CardRow;
-pub use hand::{ draw_hand, get_hand_y, get_card_sizes, get_card_position };
+pub use hand::{ draw_hand, get_hand_y, get_card_sizes };
 pub use play_area::draw_play_area;

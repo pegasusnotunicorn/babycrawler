@@ -46,24 +46,20 @@ pub fn hovered_card_index(
     None
 }
 
-pub fn draw_hand(state: &GameState, hand: &[Card], selected_card: &Option<Card>, frame: f64) {
+pub fn draw_hand(state: &GameState, frame: f64) {
+    let hand = &state.get_local_player().unwrap().hand;
     if hand.is_empty() {
         return;
     }
+    let selected_card = state.selected_card.clone();
+    let is_my_turn = state.is_my_turn();
 
     let pointer = mouse::screen();
     let pointer_xy = (pointer.x, pointer.y);
     let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
         state.get_board_layout(false);
-
     let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
     let hovered = hovered_card_index(hand, pointer_xy, canvas_width, canvas_height);
-
-    // If dragging, get dragged card info
-    let (dragged_index, actively_dragging) = match &state.dragged_card {
-        Some(drag) => (Some(drag.hand_index), drag.dragging),
-        None => (None, false),
-    };
 
     // Build CardRow for the hand
     let y = get_hand_y();
@@ -71,8 +67,9 @@ pub fn draw_hand(state: &GameState, hand: &[Card], selected_card: &Option<Card>,
     for (i, slot) in row.slots.iter_mut().enumerate() {
         let mut visual_state = CardVisualState::NONE;
         if
+            is_my_turn &&
             hovered == Some(i) &&
-            !actively_dragging &&
+            state.animated_card.is_none() &&
             selected_card.is_none() &&
             slot.card
                 .as_ref()
@@ -86,15 +83,12 @@ pub fn draw_hand(state: &GameState, hand: &[Card], selected_card: &Option<Card>,
                 visual_state |= CardVisualState::SELECTED;
             }
         }
-        if Some(i) == dragged_index {
-            visual_state |= CardVisualState::DUMMY;
-        }
         slot.visual_state = visual_state;
     }
     row.draw(frame);
 
-    // Draw the dragged card on top, if any
-    if let Some(drag) = &state.dragged_card {
+    // Draw the animated card on top, if any
+    if let Some(drag) = &state.animated_card {
         let (dx, dy) = drag.pos;
         drag.card.draw(
             dx as u32,

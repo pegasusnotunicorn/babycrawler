@@ -11,11 +11,10 @@ use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu_screen };
 use crate::game::cards::draw_play_area;
-use crate::game::animation::update_spring_back_dragged_card;
+use crate::game::animation::update_animations;
 use crate::game::cards::draw_hand;
 use crate::game::cards::card::Card;
 use crate::game::debug::draw_debug;
-use crate::game::animation::update_tile_rotation_animations;
 
 use turbo::{ bounds, * };
 use turbo::os;
@@ -37,19 +36,39 @@ impl fmt::Display for PlayerId {
 #[derive(
     Clone,
     Debug,
+    PartialEq,
+    Eq,
     borsh::BorshDeserialize,
     borsh::BorshSerialize,
     serde::Serialize,
     serde::Deserialize
 )]
-pub struct DraggedCard {
+pub enum AnimatedCardOrigin {
+    Hand,
+    PlayArea,
+    Other,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    borsh::BorshDeserialize,
+    borsh::BorshSerialize,
+    serde::Serialize,
+    serde::Deserialize
+)]
+pub struct AnimatedCard {
     pub card: Card,
-    pub hand_index: usize,
-    pub offset: (i32, i32), // pointer - card origin at drag start
-    pub pos: (f32, f32), // current position (for spring-back)
-    pub velocity: (f32, f32), // for spring-back
+    pub pos: (f32, f32), // current position
+    pub velocity: (f32, f32), // current velocity
+    pub origin_row: AnimatedCardOrigin,
+    pub origin_row_index: usize,
+    pub origin_pos: (f32, f32), // where the card started animating from
+    pub target_row: AnimatedCardOrigin,
+    pub target_row_index: usize,
+    pub target_pos: (f32, f32), // where the card is animating to
     pub dragging: bool,
-    pub released: bool,
+    pub animating: bool,
 }
 
 fn fill_with_dummies(vec: &mut Vec<Card>, size: usize) {
@@ -73,7 +92,7 @@ pub struct GameState {
     pub current_turn_player_id: Option<String>, // Track whose turn it is (None if no turn)
     pub debug: bool,
     pub user_id_to_player_id: HashMap<String, PlayerId>,
-    pub dragged_card: Option<DraggedCard>,
+    pub animated_card: Option<AnimatedCard>,
     pub play_area: Vec<Card>,
 }
 
@@ -94,7 +113,7 @@ impl GameState {
             current_turn_player_id: None,
             debug,
             user_id_to_player_id: HashMap::new(),
-            dragged_card: None,
+            animated_card: None,
             play_area: {
                 let mut play_area = Vec::new();
                 fill_with_dummies(&mut play_area, HAND_SIZE);
@@ -150,12 +169,7 @@ impl GameState {
     pub fn update(&mut self) {
         clear(GAME_BG_COLOR);
         self.frame += 1;
-        // Spring-back for dragged card (animation logic)
-        if update_spring_back_dragged_card(self) {
-            self.dragged_card = None;
-        }
-        // Update tile rotation animations
-        update_tile_rotation_animations(self, 1.0 / 60.0);
+        update_animations(self);
         match self.scene {
             Scene::Menu => self.update_menu(),
             Scene::Game => self.update_game(),
@@ -243,8 +257,8 @@ impl GameState {
         draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
         draw_play_area(self, self.frame as f64);
 
-        if let Some(player) = self.get_local_player() {
-            draw_hand(self, &player.hand, &self.selected_card, self.frame as f64);
+        if self.get_local_player().is_some() {
+            draw_hand(self, self.frame as f64);
             draw_turn_label(self.is_my_turn(), self);
         } else {
             draw_waiting_for_players(self);

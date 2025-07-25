@@ -3,13 +3,70 @@ use crate::game::cards::card::Card;
 use crate::game::cards::CardRow;
 use crate::game::constants::*;
 use crate::game::cards::{ get_hand_y, get_card_sizes };
-use crate::game::util::{
-    rects_intersect_outline_to_inner,
-    spring_back_card,
-    get_card_button_geometry,
-};
+use crate::game::util::{ rects_intersect_outline_to_inner, get_card_button_geometry };
 use turbo::*;
 use crate::game::cards::card_effect::CardEffect;
+use crate::game::animation::highlight_selected_card_tiles;
+
+// #region Helper functions
+
+fn get_hand_slot_pos(hand_row: &CardRow, idx: usize) -> (f32, f32) {
+    let (x, y) = hand_row.get_slot_position(idx);
+    (x as f32, y as f32)
+}
+
+fn get_play_area_slot_pos(play_area_row: &CardRow, idx: usize) -> (f32, f32) {
+    let (x, y) = play_area_row.get_slot_position(idx);
+    (x as f32, y as f32)
+}
+
+fn play_area_intersect(
+    play_area_row: &CardRow,
+    card_width: u32,
+    card_height: u32,
+    pos: (f32, f32)
+) -> Option<usize> {
+    if let Some(idx) = play_area_row.leftmost_card_index(true) {
+        let (slot_x, slot_y) = play_area_row.get_slot_position(idx);
+        let border_width = GAME_PADDING;
+        if
+            rects_intersect_outline_to_inner(
+                slot_x,
+                slot_y,
+                card_width,
+                card_height,
+                pos.0 as u32,
+                pos.1 as u32,
+                card_width,
+                card_height,
+                border_width
+            )
+        {
+            return Some(idx);
+        }
+    }
+    None
+}
+
+fn get_hand_row(state: &GameState) -> CardRow {
+    let (canvas_width, canvas_height, _, _, _) = state.get_board_layout(false);
+    let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
+    let hand_cards = state
+        .get_local_player()
+        .map(|p| p.hand.clone())
+        .unwrap_or_default();
+    CardRow::new(&hand_cards, get_hand_y() as u32, card_width, card_height)
+}
+
+fn get_play_area_row(state: &GameState) -> CardRow {
+    let (canvas_width, canvas_height, _, _, _) = state.get_board_layout(false);
+    let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
+    let hand_y = get_hand_y() as i32;
+    let play_area_y = hand_y + (card_height as i32) + (GAME_PADDING as i32);
+    CardRow::new(&state.play_area, play_area_y as u32, card_width, card_height)
+}
+
+// #endregion
 
 pub fn handle_card_drag(
     state: &mut GameState,
@@ -17,57 +74,35 @@ pub fn handle_card_drag(
     pointer_xy: (i32, i32)
 ) {
     let selected_card = state.selected_card.clone();
-    let play_area_cards = state.play_area.clone();
-    let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
-        state.get_board_layout(false);
-    let hand_cards = if let Some(player) = state.get_local_player() {
-        player.hand.clone()
-    } else {
-        Vec::new()
-    };
-    let (w, h) = get_card_sizes(canvas_width, canvas_height);
-    let card_width = w as i32;
-    let card_height = h as i32;
-    let hand_row = CardRow::new(
-        &hand_cards,
-        get_hand_y() as u32,
-        card_width as u32,
-        card_height as u32
-    );
-    let play_area_row = CardRow::new(
-        &play_area_cards,
-        ((get_hand_y() as i32) + card_height + (GAME_PADDING as i32)) as u32,
-        card_width as u32,
-        card_height as u32
-    );
+    let hand_row = get_hand_row(state);
     let hand_slot_at_point = hand_row.slot_at_point(pointer_xy.0, pointer_xy.1);
+    let play_area_row = get_play_area_row(state);
 
-    let mut dragged = state.dragged_card.take();
+    let mut dragged = state.animated_card.take();
     if let Some(player) = state.get_local_player_mut() {
-        let (w, h) = get_card_sizes(canvas_width, canvas_height);
-        let card_width = w as i32;
-        let card_height = h as i32;
-
+        // Only allow a new drag if no card is being dragged or animating
+        let can_start_drag = dragged.as_ref().map_or(true, |d| !d.dragging && !d.animating);
         // Start drag from hand
-        if selected_card.is_none() {
+        if selected_card.is_none() && can_start_drag {
             if let Some(idx) = hand_slot_at_point {
                 if pointer.left.just_pressed() {
                     let hand_has_card = player.hand.get(idx).is_some();
                     if hand_has_card {
                         let card = player.hand[idx].clone();
-                        let (card_x, card_y) = hand_row.get_slot_position(idx);
-                        let offset = (
-                            pointer_xy.0 - (card_x as i32),
-                            pointer_xy.1 - (card_y as i32),
-                        );
-                        dragged = Some(crate::DraggedCard {
+                        player.hand[idx] = Card::dummy_card();
+                        let origin_pos = get_hand_slot_pos(&hand_row, idx);
+                        dragged = Some(crate::AnimatedCard {
                             card: card.clone(),
-                            hand_index: idx,
-                            offset,
-                            pos: (card_x as f32, card_y as f32),
+                            pos: origin_pos,
                             velocity: (0.0, 0.0),
+                            origin_row: crate::AnimatedCardOrigin::Hand,
+                            origin_row_index: idx,
+                            origin_pos,
+                            target_row: crate::AnimatedCardOrigin::Hand,
+                            target_row_index: idx,
+                            target_pos: origin_pos,
                             dragging: true,
-                            released: false,
+                            animating: false,
                         });
                     }
                 }
@@ -76,82 +111,38 @@ pub fn handle_card_drag(
 
         // Drag update
         if let Some(drag) = &mut dragged {
-            if pointer.left.pressed() && drag.dragging {
-                let new_x = (pointer_xy.0 - drag.offset.0) as f32;
-                let new_y = (pointer_xy.1 - drag.offset.1) as f32;
+            if drag.dragging && pointer.left.pressed() && !drag.animating {
+                let new_x = (pointer_xy.0 - ((hand_row.card_width / 2) as i32)) as f32;
+                let new_y = (pointer_xy.1 - ((hand_row.card_height / 2) as i32)) as f32;
                 drag.pos = (new_x, new_y);
+                drag.target_pos = (new_x, new_y);
             }
 
             // On release, check for valid drop
-            if pointer.left.just_released() && drag.dragging {
+            if drag.dragging && pointer.left.just_released() {
                 drag.dragging = false;
-                drag.released = true;
-
-                let hand_card_opt = player.hand.get(drag.hand_index).cloned();
-                let from_hand = hand_card_opt
-                    .as_ref()
-                    .map(|c| c == &drag.card)
-                    .unwrap_or(false);
-
-                if from_hand {
-                    let card = hand_card_opt.unwrap();
-                    if let Some(target_idx) = play_area_row.leftmost_card_index(true) {
-                        // Only allow drop if the dragged card's outline intersects the slot's inner rect
-                        let (slot_x, slot_y) = play_area_row.get_slot_position(target_idx);
-                        let border_width = GAME_PADDING;
-                        if
-                            rects_intersect_outline_to_inner(
-                                slot_x,
-                                slot_y,
-                                card_width as u32,
-                                card_height as u32,
-                                drag.pos.0 as u32,
-                                drag.pos.1 as u32,
-                                card_width as u32,
-                                card_height as u32,
-                                border_width
-                            )
-                        {
-                            // Remove from hand
-                            player.hand[drag.hand_index] = Card::dummy_card();
-                            // Insert into play_area
-                            state.play_area.insert(target_idx, card.clone());
-                            state.play_area.truncate(HAND_SIZE);
-                            // Set selected_card to the dropped card (after all borrows)
-                            state.selected_card = Some(card);
-                            highlight_selected_card_tiles(state);
-                            // Drop drag state
-                            state.dragged_card = None;
-                            return;
-                        }
-                    }
+                // Check if released over play area
+                let w = play_area_row.card_width;
+                let h = play_area_row.card_height;
+                if let Some(idx) = play_area_intersect(&play_area_row, w, h, drag.pos) {
+                    let target_pos = get_play_area_slot_pos(&play_area_row, idx);
+                    drag.target_pos = target_pos;
+                    drag.target_row = crate::AnimatedCardOrigin::PlayArea;
+                    drag.target_row_index = idx;
+                    drag.animating = true;
                 } else {
-                    if from_hand {
-                        spring_back_card(
-                            state,
-                            drag.card.clone(),
-                            drag.hand_index,
-                            drag.pos.0 as u32,
-                            drag.pos.1 as u32
-                        );
-                    }
+                    // Animate back to hand slot (original index)
+                    let target_pos = get_hand_slot_pos(&hand_row, drag.origin_row_index);
+                    drag.target_pos = target_pos;
+                    drag.target_row = crate::AnimatedCardOrigin::Hand;
+                    drag.target_row_index = drag.origin_row_index;
+                    drag.animating = true;
                 }
             }
         }
     }
     // Put drag state back
-    state.dragged_card = dragged;
-}
-
-fn highlight_selected_card_tiles(state: &mut GameState) {
-    let selected_card = state.selected_card.clone();
-    // Highlight tiles for the newly selected card
-    crate::game::map::tile::clear_highlights(&mut state.tiles);
-    if let Some(card) = &selected_card {
-        if let Some(player) = state.get_local_player() {
-            card.effect.highlight_tiles(player.position, &mut state.tiles);
-        }
-    }
+    state.animated_card = dragged;
 }
 
 pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMouse) {
@@ -214,32 +205,31 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
 }
 
 /// Moves a card from the play area to the first empty hand slot, updates state, and sets up spring-back animation.
-pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected: &Card) -> bool {
+pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected: &Card) {
     // Compute all needed values before mutating state
-    let play_area_cards = state.play_area.clone();
-    let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
-        state.get_board_layout(false);
-    let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
-    let hand_y = get_hand_y() as i32;
-    let play_area_y = hand_y + (card_height as i32) + (GAME_PADDING as i32);
-    let play_area_row = CardRow::new(
-        &play_area_cards,
-        play_area_y as u32,
-        card_width as u32,
-        card_height as u32
-    );
+    let play_area_row = get_play_area_row(state);
     let (from_x, from_y) = play_area_row.get_slot_position(play_area_idx);
     if let Some(player) = state.get_local_player_mut() {
         let empty_idx = player.hand.iter().position(|c| c.id == 0);
         if let Some(empty_idx) = empty_idx {
-            player.hand[empty_idx] = selected.clone();
-            if let Some(slot) = state.play_area.get_mut(play_area_idx) {
-                *slot = Card::dummy_card();
-            }
-            spring_back_card(state, selected.clone(), empty_idx, from_x, from_y);
+            state.play_area[play_area_idx] = Card::dummy_card();
+            let hand_row = get_hand_row(state);
+            let (to_x, to_y) = hand_row.get_slot_position(empty_idx);
+            // Set up AnimatedCard for spring-back animation
+            state.animated_card = Some(crate::AnimatedCard {
+                card: selected.clone(),
+                pos: (from_x as f32, from_y as f32),
+                velocity: (0.0, 0.0),
+                origin_row: crate::AnimatedCardOrigin::PlayArea,
+                origin_row_index: play_area_idx,
+                origin_pos: (from_x as f32, from_y as f32),
+                target_row: crate::AnimatedCardOrigin::Hand,
+                target_row_index: empty_idx,
+                target_pos: (to_x as f32, to_y as f32),
+                dragging: false,
+                animating: true,
+            });
             highlight_selected_card_tiles(state);
-            return true;
         }
     }
-    false
 }
