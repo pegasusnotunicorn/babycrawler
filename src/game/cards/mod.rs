@@ -1,4 +1,5 @@
 pub mod card;
+pub mod card_buttons;
 pub mod card_effect;
 pub mod card_row;
 pub mod card_slot;

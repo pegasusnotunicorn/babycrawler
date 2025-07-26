@@ -1,25 +1,24 @@
-mod game_channel;
-use game_channel::GameChannel;
-use game_channel::{ GameToClient as GCToClient, GameToServer as GCToServer };
+mod server;
+use server::{ ServerToClient, GameChannel, CurrentTurn };
 mod game;
 mod scene;
+mod network;
 
 use crate::game::map::draw_board;
-use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR };
-use crate::game::input::handle_input;
+use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR, GAME_CHANNEL };
+use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
-use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu_screen };
-use crate::game::cards::draw_play_area;
-use crate::game::animation::update_animations;
-use crate::game::cards::draw_hand;
-use crate::game::cards::card::Card;
+use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu };
+use crate::game::animation::{ update_animations, AnimatedCard };
 use crate::game::debug::draw_debug;
+use crate::game::cards::{ draw_play_area, draw_hand };
+use crate::game::cards::card::Card;
+use crate::game::cards::play_area::fill_with_dummies;
+use crate::network::receive::*;
 
-use turbo::{ bounds, * };
-use turbo::os;
-use turbo::gamepad;
-use scene::{ Scene, MultiplayerScene };
+use turbo::{ os, gamepad, bounds, * };
+use scene::Scene;
 
 use std::fmt;
 use std::collections::HashMap;
@@ -33,51 +32,6 @@ impl fmt::Display for PlayerId {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    borsh::BorshDeserialize,
-    borsh::BorshSerialize,
-    serde::Serialize,
-    serde::Deserialize
-)]
-pub enum AnimatedCardOrigin {
-    Hand,
-    PlayArea,
-    Other,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    borsh::BorshDeserialize,
-    borsh::BorshSerialize,
-    serde::Serialize,
-    serde::Deserialize
-)]
-pub struct AnimatedCard {
-    pub card: Card,
-    pub pos: (f32, f32), // current position
-    pub velocity: (f32, f32), // current velocity
-    pub origin_row: AnimatedCardOrigin,
-    pub origin_row_index: usize,
-    pub origin_pos: (f32, f32), // where the card started animating from
-    pub target_row: AnimatedCardOrigin,
-    pub target_row_index: usize,
-    pub target_pos: (f32, f32), // where the card is animating to
-    pub dragging: bool,
-    pub animating: bool,
-}
-
-fn fill_with_dummies(vec: &mut Vec<Card>, size: usize) {
-    while vec.len() < size {
-        vec.push(Card::dummy_card());
-    }
-    vec.truncate(size);
-}
-
 #[turbo::game]
 pub struct GameState {
     pub frame: usize,
@@ -86,14 +40,12 @@ pub struct GameState {
     pub selected_card: Option<Card>,
     pub scene: Scene, // Track current scene (menu or game)
     pub user: String, // This client's user id
-    pub online_now: usize, // Number of users online (matchmaking)
     pub in_lobby: Vec<String>, // Users in the current game lobby
-    pub multiplayer_scene: Option<MultiplayerScene>,
-    pub current_turn_player_id: Option<String>, // Track whose turn it is (None if no turn)
     pub debug: bool,
     pub user_id_to_player_id: HashMap<String, PlayerId>,
     pub animated_card: Option<AnimatedCard>,
     pub play_area: Vec<Card>,
+    pub current_turn: Option<CurrentTurn>,
 }
 
 impl GameState {
@@ -101,17 +53,14 @@ impl GameState {
         let debug = true; // Hardcoded for development
 
         Self {
+            debug,
             frame: 0,
             tiles: Vec::new(),
             players: Vec::new(),
             selected_card: None,
             scene: Scene::Menu, // Start in menu scene
             user: String::new(), // Will be set on connect
-            online_now: 0,
             in_lobby: Vec::new(),
-            multiplayer_scene: None,
-            current_turn_player_id: None,
-            debug,
             user_id_to_player_id: HashMap::new(),
             animated_card: None,
             play_area: {
@@ -119,24 +68,27 @@ impl GameState {
                 fill_with_dummies(&mut play_area, HAND_SIZE);
                 play_area
             },
+            current_turn: None,
         }
+    }
+
+    // #region getters
+
+    /// Returns true if it's this user's turn
+    fn is_my_turn(&self) -> bool {
+        self.current_turn.as_ref().map_or(false, |turn| self.user == turn.player_id)
     }
 
     /// Helper to get the current turn player by ID (returns Option<&Player>)
     fn get_turn_player(&self) -> Option<&Player> {
-        let id = self.current_turn_player_id.as_deref()?;
-        self.players.iter().find(|p| p.id.to_string() == id)
+        let player_id = self.current_turn.as_ref()?.player_id.as_str();
+        self.players.iter().find(|p| p.id.to_string() == player_id)
     }
 
     /// Helper to get the current turn player as mutable
     fn get_turn_player_mut(&mut self) -> Option<&mut Player> {
-        let id = self.current_turn_player_id.as_deref()?;
-        self.players.iter_mut().find(|p| p.id.to_string() == id)
-    }
-
-    /// Returns true if it's this user's turn
-    fn is_my_turn(&self) -> bool {
-        self.current_turn_player_id.as_deref().map_or(false, |id| self.user == id)
+        let player_id = self.current_turn.as_ref()?.player_id.as_str();
+        self.players.iter_mut().find(|p| p.id.to_string() == player_id)
     }
 
     /// Returns a reference to the Player struct for the current user, if any.
@@ -166,6 +118,8 @@ impl GameState {
         (canvas_width, canvas_height, tile_size, offset_x, offset_y)
     }
 
+    // #endregion
+
     pub fn update(&mut self) {
         clear(GAME_BG_COLOR);
         self.frame += 1;
@@ -178,9 +132,8 @@ impl GameState {
     }
 
     fn update_menu(&mut self) {
-        self.draw_menu();
-        let gp = gamepad::get(0);
-        if gp.start.just_pressed() {
+        draw_menu();
+        if gamepad::get(0).start.just_pressed() {
             self.scene = Scene::Game;
             self.user = os::client::user_id().unwrap_or_else(|| "NO_ID".to_string());
             // In a real game, you would get the mapping from the server or lobby
@@ -194,60 +147,33 @@ impl GameState {
     }
 
     fn update_game(&mut self) {
-        if self.multiplayer_scene.is_none() {
-            self.multiplayer_scene = Some(MultiplayerScene::MainMenu);
-        }
-        if let Some(conn) = GameChannel::subscribe("GLOBAL") {
+        if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
             while let Ok(msg) = conn.recv() {
                 match msg {
-                    GCToClient::Turn { player_id } => {
-                        log!("Turn received: {}", player_id);
-                        self.current_turn_player_id = Some(player_id);
+                    ServerToClient::ConnectedUsers { users } => {
+                        receive_connected_users(self, users);
                     }
-                    GCToClient::ConnectedUsers { users } => {
-                        self.in_lobby = users.clone();
-                        self.user_id_to_player_id.clear();
-                        if self.in_lobby.len() >= 2 {
-                            self.user_id_to_player_id.insert(
-                                self.in_lobby[0].clone(),
-                                PlayerId::Player1
-                            );
-                            self.user_id_to_player_id.insert(
-                                self.in_lobby[1].clone(),
-                                PlayerId::Player2
-                            );
-                        }
+
+                    ServerToClient::BoardState { tiles, players, current_turn } => {
+                        receive_board_state(self, tiles, players, current_turn);
                     }
-                    GCToClient::BoardState { tiles, players } => {
-                        log!("Board state received: {:?}", tiles.len());
-                        self.tiles = tiles;
-                        self.players = players;
+
+                    ServerToClient::CardSelected { card_index, card, player_id } => {
+                        receive_card_selection(self, &card_index, &Some(card), &player_id);
                     }
-                    // handle other variants if needed
+
+                    ServerToClient::CardCanceled { card_index, player_id } => {
+                        receive_card_cancel(self, &card_index, &player_id);
+                    }
                 }
             }
 
             self.draw_game();
 
-            let is_my_turn = self.is_my_turn();
-            if is_my_turn {
-                let pointer = mouse::screen();
-                let pointer_xy = (pointer.x, pointer.y);
-                handle_input(self, &pointer, pointer_xy);
-
-                if self.debug {
-                    let gp = gamepad::get(0);
-                    if gp.a.just_pressed() {
-                        let _ = conn.send(&GCToServer::EndTurn);
-                        log!("End turn sent");
-                    }
-                }
+            if self.is_my_turn() {
+                handle_input(self);
             }
         }
-    }
-
-    fn draw_menu(&self) {
-        draw_menu_screen();
     }
 
     fn draw_game(&self) {
@@ -263,7 +189,5 @@ impl GameState {
         } else {
             draw_waiting_for_players(self);
         }
-
-        draw_debug(self);
     }
 }

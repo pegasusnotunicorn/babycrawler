@@ -23,24 +23,3 @@ pub enum Scene {
     Menu,
     Game,
 }
-
-#[derive(
-    Debug,
-    Clone,
-    borsh::BorshDeserialize,
-    borsh::BorshSerialize,
-    serde::Serialize,
-    serde::Deserialize
-)]
-pub enum MultiplayerScene {
-    MainMenu,
-    Lobby {
-        id: String,
-    },
-    Game {
-        id: String,
-    },
-    Disconnected {
-        player: String,
-    },
-}

@@ -7,8 +7,6 @@ use crate::game::constants::{
     GAME_BG_COLOR,
     FLASH_SPEED,
     CARD_DUMMY_COLOR,
-    CARD_BUTTON_A_COLOR,
-    CARD_BUTTON_B_COLOR,
 };
 use bitflags::bitflags;
 
@@ -186,24 +184,5 @@ impl Card {
             let label_y = y + inset + 4;
             text!(&self.name, x = label_x, y = label_y, font = "large", color = 0x000000ff);
         }
-    }
-}
-
-pub fn draw_card_buttons(x: u32, y: u32, w: u32, h: u32, pointer_xy: (i32, i32)) {
-    let border_width = GAME_PADDING;
-    let inset_x = border_width / 2;
-    let inset_y = border_width;
-    let button_w = (w - GAME_PADDING * 3) / 2;
-    let button_h = button_w;
-    let button_y = y + h - inset_y - button_h;
-    let pointer_bounds = turbo::Bounds::new(pointer_xy.0 as u32, pointer_xy.1 as u32, 1, 1);
-    let button_specs = [
-        ("B", CARD_BUTTON_B_COLOR, x + inset_x + GAME_PADDING / 2),
-        ("A", CARD_BUTTON_A_COLOR, x + w + inset_x - inset_y - GAME_PADDING / 2 - button_w),
-    ];
-    for (label, color, bx) in button_specs {
-        let bounds = turbo::Bounds::new(bx, button_y, button_w, button_h);
-        let hovered = bounds.contains(&pointer_bounds);
-        Card::draw_button(label, bx, button_y, button_w, button_h, color, hovered);
     }
 }

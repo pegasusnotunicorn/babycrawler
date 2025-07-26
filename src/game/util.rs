@@ -49,18 +49,3 @@ pub fn rects_intersect_outline_to_inner(
     let drag_bounds = turbo::Bounds::new(drag_x, drag_y, drag_w, drag_h);
     slot_bounds.intersects(&drag_bounds)
 }
-
-pub struct CardButtonGeometry {
-    pub button_w: u32,
-    pub button_h: u32,
-    pub button_y: u32,
-    pub inset: u32,
-}
-
-pub fn get_card_button_geometry(y: u32, w: u32, h: u32, padding: u32) -> CardButtonGeometry {
-    let inset = padding / 2;
-    let button_w = (w - padding * 3) / 2;
-    let button_h = button_w;
-    let button_y = y + h - inset - button_h;
-    CardButtonGeometry { button_w, button_h, button_y, inset }
-}

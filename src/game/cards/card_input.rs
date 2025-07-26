@@ -1,12 +1,13 @@
 use crate::GameState;
 use crate::game::cards::card::Card;
+use crate::game::cards::card_buttons::CardButton;
 use crate::game::cards::CardRow;
 use crate::game::constants::*;
 use crate::game::cards::{ get_hand_y, get_card_sizes };
-use crate::game::util::{ rects_intersect_outline_to_inner, get_card_button_geometry };
+use crate::game::util::rects_intersect_outline_to_inner;
 use turbo::*;
 use crate::game::cards::card_effect::CardEffect;
-use crate::game::animation::highlight_selected_card_tiles;
+use crate::game::animation::{ highlight_selected_card_tiles, AnimatedCardOrigin, AnimatedCard };
 
 // #region Helper functions
 
@@ -91,14 +92,14 @@ pub fn handle_card_drag(
                         let card = player.hand[idx].clone();
                         player.hand[idx] = Card::dummy_card();
                         let origin_pos = get_hand_slot_pos(&hand_row, idx);
-                        dragged = Some(crate::AnimatedCard {
+                        dragged = Some(AnimatedCard {
                             card: card.clone(),
                             pos: origin_pos,
                             velocity: (0.0, 0.0),
-                            origin_row: crate::AnimatedCardOrigin::Hand,
+                            origin_row: AnimatedCardOrigin::Hand,
                             origin_row_index: idx,
                             origin_pos,
-                            target_row: crate::AnimatedCardOrigin::Hand,
+                            target_row: AnimatedCardOrigin::Hand,
                             target_row_index: idx,
                             target_pos: origin_pos,
                             dragging: true,
@@ -127,14 +128,14 @@ pub fn handle_card_drag(
                 if let Some(idx) = play_area_intersect(&play_area_row, w, h, drag.pos) {
                     let target_pos = get_play_area_slot_pos(&play_area_row, idx);
                     drag.target_pos = target_pos;
-                    drag.target_row = crate::AnimatedCardOrigin::PlayArea;
+                    drag.target_row = AnimatedCardOrigin::PlayArea;
                     drag.target_row_index = idx;
                     drag.animating = true;
                 } else {
                     // Animate back to hand slot (original index)
                     let target_pos = get_hand_slot_pos(&hand_row, drag.origin_row_index);
                     drag.target_pos = target_pos;
-                    drag.target_row = crate::AnimatedCardOrigin::Hand;
+                    drag.target_row = AnimatedCardOrigin::Hand;
                     drag.target_row_index = drag.origin_row_index;
                     drag.animating = true;
                 }
@@ -146,25 +147,18 @@ pub fn handle_card_drag(
 }
 
 pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMouse) {
-    let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =
-        state.get_board_layout(false);
-    let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
-    let hand_y = get_hand_y() as i32;
-    let play_area_y = hand_y + (card_height as i32) + (GAME_PADDING as i32);
-    let play_area_row = CardRow::new(
-        &state.play_area,
-        play_area_y as u32,
-        card_width as u32,
-        card_height as u32
-    );
+    let play_area_row = get_play_area_row(state);
     let pointer_xy = (pointer.x, pointer.y);
     let just_pressed = pointer.left.just_pressed();
+
     for (i, slot) in play_area_row.slots.iter().enumerate() {
         let (x, y) = play_area_row.get_slot_position(i);
         let w = play_area_row.card_width;
         let h = play_area_row.card_height;
-        let geom = get_card_button_geometry(y, w, h, GAME_PADDING);
+        let geometry = CardButton::new(y, w, h);
+        let button_positions = geometry.get_button_positions(x, w);
         let pointer_bounds = turbo::Bounds::new(pointer_xy.0 as u32, pointer_xy.1 as u32, 1, 1);
+
         let show_buttons = {
             if let Some(card) = &slot.card {
                 if !card.is_dummy() {
@@ -176,21 +170,19 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
                 false
             }
         };
+
         if show_buttons {
             let button_specs = [
-                ("B", 0xff2222ffu32, x + geom.inset + GAME_PADDING / 2),
-                ("A", 0x22cc22ffu32, x + w - geom.inset - GAME_PADDING / 2 - geom.button_w),
+                ("B", button_positions[0]),
+                ("A", button_positions[1]),
             ];
-            for (label, _color, bx) in button_specs {
-                let bounds = turbo::Bounds::new(bx, geom.button_y, geom.button_w, geom.button_h);
+
+            for (label, (bx, by)) in button_specs {
+                let bounds = turbo::Bounds::new(bx, by, geometry.button_w, geometry.button_h);
                 let hovered = bounds.contains(&pointer_bounds);
                 if hovered && just_pressed {
                     if label == "B" {
                         if let Some(selected) = state.selected_card.take() {
-                            // If the selected card is a rotate card, revert tile rotations
-                            if let CardEffect::RotateCard = selected.effect {
-                                CardEffect::revert_tile_rotations(&mut state.tiles);
-                            }
                             if let Some(idx) = state.play_area.iter().position(|c| c == &selected) {
                                 handle_card_cancel(state, idx, &selected);
                             }
@@ -206,7 +198,11 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
 
 /// Moves a card from the play area to the first empty hand slot, updates state, and sets up spring-back animation.
 pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected: &Card) {
-    // Compute all needed values before mutating state
+    // If the selected card is a rotate card, revert tile rotations
+    if let CardEffect::RotateCard = selected.effect {
+        CardEffect::revert_tile_rotations(&mut state.tiles);
+    }
+
     let play_area_row = get_play_area_row(state);
     let (from_x, from_y) = play_area_row.get_slot_position(play_area_idx);
     if let Some(player) = state.get_local_player_mut() {
@@ -215,15 +211,16 @@ pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected:
             state.play_area[play_area_idx] = Card::dummy_card();
             let hand_row = get_hand_row(state);
             let (to_x, to_y) = hand_row.get_slot_position(empty_idx);
+
             // Set up AnimatedCard for spring-back animation
-            state.animated_card = Some(crate::AnimatedCard {
+            state.animated_card = Some(AnimatedCard {
                 card: selected.clone(),
                 pos: (from_x as f32, from_y as f32),
                 velocity: (0.0, 0.0),
-                origin_row: crate::AnimatedCardOrigin::PlayArea,
+                origin_row: AnimatedCardOrigin::PlayArea,
                 origin_row_index: play_area_idx,
                 origin_pos: (from_x as f32, from_y as f32),
-                target_row: crate::AnimatedCardOrigin::Hand,
+                target_row: AnimatedCardOrigin::Hand,
                 target_row_index: empty_idx,
                 target_pos: (to_x as f32, to_y as f32),
                 dragging: false,
@@ -232,4 +229,15 @@ pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected:
             highlight_selected_card_tiles(state);
         }
     }
+}
+
+pub fn update_state_with_card(state: &mut GameState, card_index: usize, card: Option<&Card>) {
+    if let Some(card) = card {
+        state.selected_card = Some(card.clone());
+        state.play_area[card_index] = card.clone();
+    } else {
+        state.selected_card = None;
+        state.play_area[card_index] = Card::dummy_card();
+    }
+    highlight_selected_card_tiles(state);
 }

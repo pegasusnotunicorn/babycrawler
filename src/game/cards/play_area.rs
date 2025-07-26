@@ -5,7 +5,14 @@ use crate::game::constants::{ GAME_PADDING, CARD_DUMMY_COLOR };
 use crate::game::util::rects_intersect_outline_to_inner;
 use turbo::mouse;
 use crate::game::cards::card::{ Card, CardVisualState };
-use crate::game::cards::card::draw_card_buttons;
+use crate::game::cards::card_buttons::draw_card_buttons;
+
+pub fn fill_with_dummies(vec: &mut Vec<Card>, size: usize) {
+    while vec.len() < size {
+        vec.push(Card::dummy_card());
+    }
+    vec.truncate(size);
+}
 
 pub fn draw_play_area(state: &GameState, frame: f64) {
     let (canvas_width, canvas_height, _tile_size, _offset_x, _offset_y) =

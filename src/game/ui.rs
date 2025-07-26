@@ -24,7 +24,7 @@ pub fn draw_text(text: &str) {
     text!(text, x = text_x, y = text_y, font = "large", color = outline_color);
 }
 
-pub fn draw_menu_screen() {
+pub fn draw_menu() {
     let menu_items = ["Press SPACE to start"];
     if let Some(item) = menu_items.first() {
         draw_text(item);

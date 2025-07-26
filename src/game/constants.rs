@@ -24,3 +24,4 @@ pub const CARD_BUTTON_B_COLOR: u32 = 0xff2222ff;
 
 // frame
 pub const FLASH_SPEED: f64 = 0.1; // smaller = slower
+pub const GAME_CHANNEL: &str = "GLOBAL";

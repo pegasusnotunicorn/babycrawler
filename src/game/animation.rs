@@ -1,5 +1,45 @@
 use crate::GameState;
 use crate::game::map::tile::TileRotationAnim;
+use crate::network::send::{ send_card_selection, send_card_cancel };
+use crate::game::cards::card::Card;
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    borsh::BorshDeserialize,
+    borsh::BorshSerialize,
+    serde::Serialize,
+    serde::Deserialize
+)]
+pub enum AnimatedCardOrigin {
+    Hand,
+    PlayArea,
+    Other,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    borsh::BorshDeserialize,
+    borsh::BorshSerialize,
+    serde::Serialize,
+    serde::Deserialize
+)]
+pub struct AnimatedCard {
+    pub card: Card,
+    pub pos: (f32, f32), // current position
+    pub velocity: (f32, f32), // current velocity
+    pub origin_row: AnimatedCardOrigin,
+    pub origin_row_index: usize,
+    pub origin_pos: (f32, f32), // where the card started animating from
+    pub target_row: AnimatedCardOrigin,
+    pub target_row_index: usize,
+    pub target_pos: (f32, f32), // where the card is animating to
+    pub dragging: bool,
+    pub animating: bool,
+}
 
 pub fn update_animations(state: &mut GameState) {
     if update_animated_card_spring(state) {
@@ -64,12 +104,10 @@ pub fn update_animated_card_spring(state: &mut GameState) -> bool {
 pub fn handle_animated_card_complete(state: &mut crate::GameState) {
     let animated = state.animated_card.as_ref().cloned();
     if let Some(drag) = animated {
-        if drag.target_row == crate::AnimatedCardOrigin::PlayArea {
-            state.play_area.insert(drag.target_row_index, drag.card.clone());
-            state.selected_card = Some(drag.card.clone());
-            highlight_selected_card_tiles(state);
-        } else if drag.target_row == crate::AnimatedCardOrigin::Hand {
-            state.get_local_player_mut().unwrap().hand[drag.target_row_index] = drag.card.clone();
+        if drag.target_row == AnimatedCardOrigin::PlayArea {
+            send_card_selection(drag.target_row_index, &drag.card);
+        } else if drag.target_row == AnimatedCardOrigin::Hand {
+            send_card_cancel(drag.target_row_index);
         }
     }
     state.animated_card = None;
