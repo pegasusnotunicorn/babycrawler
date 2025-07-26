@@ -12,43 +12,9 @@ pub enum CardEffect {
     MoveOneTile,
     RotateCard,
     SwapCard,
-    // more to come
 }
 
 impl CardEffect {
-    pub fn highlight_tiles(&self, player_pos: (usize, usize), tiles: &mut [Tile]) {
-        let current_index = player_pos.1 * MAP_SIZE + player_pos.0;
-        let current_tile = tiles[current_index].clone();
-
-        match self {
-            CardEffect::Dummy => {}
-
-            CardEffect::MoveOneTile => {
-                for (i, tile) in tiles.iter_mut().enumerate() {
-                    if current_tile.can_move_to(current_index, tile, i) {
-                        tile.is_highlighted = true;
-                    }
-                }
-            }
-
-            CardEffect::RotateCard => {
-                // Store current rotation for all tiles
-                for tile in tiles.iter_mut() {
-                    tile.original_rotation = tile.current_rotation;
-                }
-                for i in Tile::get_adjacent_indices(current_index, true, true) {
-                    tiles[i].is_highlighted = true;
-                }
-            }
-
-            CardEffect::SwapCard => {
-                for i in Tile::get_adjacent_indices(current_index, true, true) {
-                    tiles[i].is_highlighted = true;
-                }
-            }
-        }
-    }
-
     pub fn apply_effect(&self, state: &mut GameState, tile_index: usize) {
         match self {
             CardEffect::Dummy => {}
@@ -117,8 +83,6 @@ impl CardEffect {
     fn end_turn(state: &mut GameState) {
         state.selected_card = None;
         clear_highlights(&mut state.tiles);
-        // let _ = DealCard.exec();
-        // let _ = NextTurn.exec();
     }
 
     // Add a function to revert all tiles to their original_rotation

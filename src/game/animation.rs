@@ -1,5 +1,6 @@
 use crate::GameState;
 use crate::game::map::tile::TileRotationAnim;
+use crate::game::map::tile_effects::highlight_tiles_for_effect;
 use crate::network::send::{ send_card_selection, send_card_cancel };
 use crate::game::cards::card::Card;
 
@@ -119,7 +120,7 @@ pub fn highlight_selected_card_tiles(state: &mut GameState) {
     crate::game::map::tile::clear_highlights(&mut state.tiles);
     if let Some(card) = &selected_card {
         if let Some(player) = state.get_local_player() {
-            card.effect.highlight_tiles(player.position, &mut state.tiles);
+            highlight_tiles_for_effect(&card.effect, player.position, &mut state.tiles);
         }
     }
 }
