@@ -12,9 +12,9 @@ pub fn send_card_selection(card_index: usize, card: &Card) {
     }
 }
 
-pub fn send_card_cancel(card_index: usize) {
-    log!("🚀 [SEND] Card cancel: {}", card_index);
-    let msg = ClientToServer::CancelSelectCard { card_index };
+pub fn send_card_cancel(card_index: usize, card: &Card) {
+    log!("🚀 [SEND] Card cancel: {}", card.name);
+    let msg = ClientToServer::CancelSelectCard { card_index, card: card.clone() };
     if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
         let _ = conn.send(&msg);
     }
@@ -23,6 +23,14 @@ pub fn send_card_cancel(card_index: usize) {
 pub fn send_end_turn() {
     log!("🚀 [SEND] End turn");
     let msg = ClientToServer::EndTurn;
+    if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
+        let _ = conn.send(&msg);
+    }
+}
+
+pub fn send_tile_rotation(tile_index: usize, clockwise: bool) {
+    log!("🚀 [SEND] Tile rotation: {}", tile_index);
+    let msg = ClientToServer::RotateTile { tile_index, clockwise };
     if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
         let _ = conn.send(&msg);
     }

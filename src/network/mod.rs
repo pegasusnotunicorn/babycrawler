@@ -14,5 +14,10 @@ pub enum ClientToServer {
     },
     CancelSelectCard {
         card_index: usize,
+        card: Card,
+    },
+    RotateTile {
+        tile_index: usize,
+        clockwise: bool,
     },
 }

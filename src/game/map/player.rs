@@ -23,6 +23,7 @@ impl Player {
         for _ in 0..hand_size {
             hand.push(Card::random());
         }
+
         Self {
             id,
             position: (x, y),

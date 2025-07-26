@@ -1,5 +1,5 @@
 mod server;
-use server::{ ServerToClient, GameChannel, CurrentTurn };
+use crate::server::{ GameChannel, CurrentTurn, ServerToClient };
 mod game;
 mod scene;
 mod network;
@@ -162,8 +162,12 @@ impl GameState {
                         receive_card_selection(self, &card_index, &Some(card), &player_id);
                     }
 
-                    ServerToClient::CardCanceled { card_index, player_id } => {
-                        receive_card_cancel(self, &card_index, &player_id);
+                    ServerToClient::CardCanceled { card_index, card, player_id } => {
+                        receive_card_cancel(self, &card_index, &card, &player_id);
+                    }
+
+                    ServerToClient::TileRotated { tile_index, clockwise, player_id } => {
+                        receive_tile_rotation(self, &tile_index, &clockwise, &player_id);
                     }
                 }
             }

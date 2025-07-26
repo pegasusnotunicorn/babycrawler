@@ -1,6 +1,8 @@
 use crate::game::constants::MAP_SIZE;
 use crate::game::map::{ Tile, clear_highlights, Player };
+use crate::game::animation::start_tile_rotation_animation;
 use crate::GameState;
+use crate::network::send::send_tile_rotation;
 
 use turbo::*;
 use serde::{ Serialize, Deserialize };
@@ -43,8 +45,12 @@ impl CardEffect {
     }
 
     fn apply_rotate_card(&self, state: &mut GameState, tile_index: usize) {
-        if state.tiles[tile_index].is_highlighted {
-            crate::game::animation::start_tile_rotation_animation(state, tile_index, true, 0.25);
+        let tile = &mut state.tiles[tile_index];
+        if tile.is_highlighted {
+            if tile.rotation_anim.is_none() {
+                send_tile_rotation(tile_index, true);
+            }
+            start_tile_rotation_animation(state, tile_index, true, 0.25);
         }
     }
 

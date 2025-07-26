@@ -1,3 +1,4 @@
+use turbo::*;
 use crate::GameState;
 use crate::game::map::tile::TileRotationAnim;
 use crate::game::map::tile_effects::highlight_tiles_for_effect;
@@ -108,7 +109,7 @@ pub fn handle_animated_card_complete(state: &mut crate::GameState) {
         if drag.target_row == AnimatedCardOrigin::PlayArea {
             send_card_selection(drag.target_row_index, &drag.card);
         } else if drag.target_row == AnimatedCardOrigin::Hand {
-            send_card_cancel(drag.target_row_index);
+            send_card_cancel(drag.target_row_index, &drag.card);
         }
     }
     state.animated_card = None;
