@@ -159,7 +159,7 @@ impl GameState {
                     }
 
                     ServerToClient::CardSelected { card_index, card, player_id } => {
-                        receive_card_selection(self, &card_index, &Some(card), &player_id);
+                        receive_card_selection(self, &card_index, &card, &player_id);
                     }
 
                     ServerToClient::CardCanceled { card_index, card, player_id } => {

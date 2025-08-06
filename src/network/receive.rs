@@ -10,15 +10,20 @@ pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
 
     game_state.in_lobby = users.clone();
     game_state.user_id_to_player_id.clear();
-    if game_state.in_lobby.len() >= 2 {
+
+    // Handle player mapping for any number of players
+    if !game_state.in_lobby.is_empty() {
         game_state.user_id_to_player_id.insert(
             game_state.in_lobby[0].clone(),
             crate::game::map::PlayerId::Player1
         );
-        game_state.user_id_to_player_id.insert(
-            game_state.in_lobby[1].clone(),
-            crate::game::map::PlayerId::Player2
-        );
+
+        if game_state.in_lobby.len() >= 2 {
+            game_state.user_id_to_player_id.insert(
+                game_state.in_lobby[1].clone(),
+                crate::game::map::PlayerId::Player2
+            );
+        }
     }
 }
 
@@ -37,12 +42,14 @@ pub fn receive_board_state(
 
     // Handle current turn card selection if present
     if let Some(turn_info) = &current_turn {
-        receive_card_selection(
-            game_state,
-            &turn_info.selected_card_index,
-            &turn_info.selected_card.as_ref().unwrap(),
-            &turn_info.player_id
-        );
+        if let Some(selected_card) = &turn_info.selected_card {
+            receive_card_selection(
+                game_state,
+                &turn_info.selected_card_index,
+                selected_card,
+                &turn_info.player_id
+            );
+        }
     }
 }
 
@@ -61,7 +68,7 @@ pub fn receive_card_selection(
 
             // If it's the local player's turn, update the play area
             if game_state.user == player_id {
-                update_state_with_card(game_state, *card_index, card.as_ref());
+                update_state_with_card(game_state, *card_index, Some(card));
             }
         }
     }
