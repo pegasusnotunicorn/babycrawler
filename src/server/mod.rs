@@ -34,4 +34,8 @@ pub enum ServerToClient {
         clockwise: bool,
         player_id: String,
     },
+    PlayerMoved {
+        player_id: String,
+        new_position: (usize, usize),
+    },
 }

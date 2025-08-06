@@ -2,7 +2,7 @@ use crate::game::constants::MAP_SIZE;
 use crate::game::map::{ Tile, clear_highlights, Player };
 use crate::game::animation::start_tile_rotation_animation;
 use crate::GameState;
-use crate::network::send::send_tile_rotation;
+use crate::network::send::{ send_tile_rotation, send_move };
 
 use turbo::*;
 use serde::{ Serialize, Deserialize };
@@ -29,6 +29,7 @@ impl CardEffect {
     fn apply_move_one_tile(&self, state: &mut GameState, tile_index: usize) {
         let player = state.get_turn_player().unwrap();
         let (px, py) = player.position;
+
         let current_index = py * MAP_SIZE + px;
 
         if tile_index == current_index {
@@ -39,9 +40,12 @@ impl CardEffect {
             return;
         }
 
-        let player = state.get_turn_player_mut().unwrap();
-        player.move_to(tile_index);
-        Self::end_turn(state);
+        // Calculate new position from tile index
+        let new_x = tile_index % MAP_SIZE;
+        let new_y = tile_index / MAP_SIZE;
+        let new_position = (new_x, new_y);
+
+        send_move(new_position);
     }
 
     fn apply_rotate_card(&self, state: &mut GameState, tile_index: usize) {

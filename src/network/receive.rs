@@ -3,6 +3,7 @@ use crate::game::cards::card::Card;
 use crate::game::cards::card_input::update_state_with_card;
 use crate::game::animation::start_tile_rotation_animation;
 use crate::game::cards::card_effect::CardEffect;
+use crate::network::send::send_move;
 use crate::GameState;
 
 pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
@@ -112,7 +113,18 @@ pub fn receive_card_cancel(
     // Depending on the canceled card, we need to do different things
     match card.effect {
         CardEffect::MoveOneTile => {
-            // Do nothing
+            // Only send the move back if this is the local player's cancel
+            if is_local_player {
+                if let Some(player) = game_state.get_player_by_user_id(player_id) {
+                    log!(
+                        "📨 [RECEIVE] Moving player back to original position: {:?}",
+                        player.original_position
+                    );
+                    send_move(player.original_position);
+                } else {
+                    log!("📨 [RECEIVE] Could not find player for move cancel");
+                }
+            }
         }
         CardEffect::RotateCard => {
             CardEffect::revert_tile_rotations(&mut game_state.tiles);
@@ -145,5 +157,21 @@ pub fn receive_tile_rotation(
         if tile.rotation_anim.is_none() {
             start_tile_rotation_animation(game_state, *tile_index, *clockwise, 0.25);
         }
+    }
+}
+
+pub fn receive_player_moved(
+    game_state: &mut GameState,
+    player_id: &str,
+    new_position: &(usize, usize)
+) {
+    log!("📨 [RECEIVE] Player moved: player={}, new_position={:?}", player_id, new_position);
+
+    // Use GameState method to get and update the player
+    if let Some(player) = game_state.get_player_by_user_id(player_id) {
+        player.position = *new_position;
+        log!("📨 [RECEIVE] Updated player {:?} position to {:?}", player.id, new_position);
+    } else {
+        log!("📨 [RECEIVE] Could not find PlayerId for user_id: {}", player_id);
     }
 }

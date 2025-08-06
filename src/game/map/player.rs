@@ -14,6 +14,7 @@ pub enum PlayerId {
 pub struct Player {
     pub id: PlayerId,
     pub position: (usize, usize),
+    pub original_position: (usize, usize),
     pub hand: Vec<Card>,
 }
 
@@ -27,6 +28,7 @@ impl Player {
         Self {
             id,
             position: (x, y),
+            original_position: (x, y),
             hand,
         }
     }
@@ -38,6 +40,10 @@ impl Player {
 
     pub fn draw_card(&mut self, card: Card) {
         self.hand.push(card);
+    }
+
+    pub fn update_original_position(&mut self) {
+        self.original_position = self.position;
     }
 
     pub fn draw(&self, tile_size: u32, offset_x: u32, offset_y: u32) {

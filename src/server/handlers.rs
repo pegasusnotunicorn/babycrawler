@@ -3,9 +3,33 @@ use crate::server::{ GameChannel, CurrentTurn };
 use crate::server::broadcast::*;
 use crate::game::cards::card::Card;
 
+/// Helper function to get the player index for a given user_id
+fn get_player_index(channel: &GameChannel, user_id: &str) -> Option<usize> {
+    channel.players.iter().position(|p| p == user_id)
+}
+
+/// Helper function to get a mutable reference to the player for a given user_id
+fn get_player_mut<'a>(
+    channel: &'a mut GameChannel,
+    user_id: &str
+) -> Option<&'a mut crate::game::map::Player> {
+    let player_index = get_player_index(channel, user_id)?;
+    channel.board_players.get_mut(player_index)
+}
+
 pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
     log!("[GameChannel] EndTurn received from {user_id}");
     if channel.players.get(channel.current_turn_index) == Some(&user_id.to_string()) {
+        // Update the original position for the current player to their final position
+        if let Some(player) = get_player_mut(channel, user_id) {
+            player.update_original_position();
+            log!(
+                "[GameChannel] Updated original position for {:?} to {:?}",
+                player.id,
+                player.original_position
+            );
+        }
+
         channel.current_turn_index = (channel.current_turn_index + 1) % channel.players.len();
         broadcast_turn(
             &channel.players,
@@ -19,6 +43,7 @@ pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
 
 pub fn handle_select_card(channel: &mut GameChannel, user_id: &str, card_index: usize, card: Card) {
     log!("[GameChannel] SelectCard received from {user_id}: index={}, card={:?}", card_index, card);
+
     channel.current_turn = Some(CurrentTurn {
         player_id: user_id.to_string(),
         selected_card: Some(card.clone()),
@@ -59,4 +84,19 @@ pub fn handle_rotate_tile(
     );
     // You can add tile rotation logic here if needed
     broadcast_tile_rotation(tile_index, clockwise, user_id);
+}
+
+pub fn handle_move_player(channel: &mut GameChannel, user_id: &str, new_position: (usize, usize)) {
+    log!("[GameChannel] MovePlayer received from {user_id}: new_position={:?}", new_position);
+
+    // Use helper function to get and update the player
+    if let Some(player) = get_player_mut(channel, user_id) {
+        player.position = new_position;
+        log!("[GameChannel] Updated player {:?} position to {:?}", player.id, new_position);
+    } else {
+        log!("[GameChannel] Could not find player for user_id: {}", user_id);
+    }
+
+    // Broadcast the move to all clients
+    broadcast_player_moved(user_id, new_position);
 }

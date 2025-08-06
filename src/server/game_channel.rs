@@ -5,7 +5,7 @@ use crate::game::constants::{ MAP_SIZE, HAND_SIZE };
 use crate::game::map::board::random_tiles;
 use crate::network::ClientToServer;
 use crate::game::cards::card::Card;
-use crate::server::broadcast::*;
+use crate::server::broadcast::{ broadcast_generic, broadcast_turn, broadcast_board_state };
 use crate::server::handlers::*;
 
 #[turbo::os::channel(program = "server", name = "game")]
@@ -34,6 +34,7 @@ impl os::server::channel::ChannelHandler for GameChannel {
             Player::new(PlayerId::Player2, MAP_SIZE - 1, MAP_SIZE - 1, HAND_SIZE)
         ];
         let board_tiles = random_tiles(MAP_SIZE * MAP_SIZE);
+
         Self {
             players: Vec::new(),
             current_turn_index: 0,
@@ -51,16 +52,21 @@ impl os::server::channel::ChannelHandler for GameChannel {
         broadcast_generic(crate::server::ServerToClient::ConnectedUsers {
             users: self.players.clone(),
         });
-        if self.players.len() == 1 {
+
+        // Only start the game when we have 2 players
+        if self.players.len() == 2 {
             self.current_turn_index = 0;
+            broadcast_turn(
+                &self.players,
+                self.current_turn_index,
+                &mut self.current_turn,
+                &self.board_tiles,
+                &self.board_players
+            );
+        } else if self.players.len() == 1 {
+            // Send board state but no current turn (game not started yet)
+            broadcast_board_state(&self.board_tiles, &self.board_players, &None);
         }
-        broadcast_turn(
-            &self.players,
-            self.current_turn_index,
-            &mut self.current_turn,
-            &self.board_tiles,
-            &self.board_players
-        );
         Ok(())
     }
 
@@ -70,16 +76,24 @@ impl os::server::channel::ChannelHandler for GameChannel {
         broadcast_generic(crate::server::ServerToClient::ConnectedUsers {
             users: self.players.clone(),
         });
-        if was_turn && !self.players.is_empty() {
-            self.current_turn_index %= self.players.len();
+
+        if self.players.len() < 2 {
+            // Game stops if we have less than 2 players
+            self.current_turn = None;
+            broadcast_board_state(&self.board_tiles, &self.board_players, &None);
+        } else {
+            // Continue game with remaining players
+            if was_turn {
+                self.current_turn_index %= self.players.len();
+            }
+            broadcast_turn(
+                &self.players,
+                self.current_turn_index,
+                &mut self.current_turn,
+                &self.board_tiles,
+                &self.board_players
+            );
         }
-        broadcast_turn(
-            &self.players,
-            self.current_turn_index,
-            &mut self.current_turn,
-            &self.board_tiles,
-            &self.board_players
-        );
         Ok(())
     }
 
@@ -97,6 +111,9 @@ impl os::server::channel::ChannelHandler for GameChannel {
             }
             ClientToServer::RotateTile { tile_index, clockwise } => {
                 handle_rotate_tile(self, user_id, tile_index, clockwise);
+            }
+            ClientToServer::MovePlayer { new_position } => {
+                handle_move_player(self, user_id, new_position);
             }
         }
         Ok(())

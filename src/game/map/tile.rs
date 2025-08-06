@@ -155,23 +155,58 @@ impl Tile {
         indices
     }
 
-    /// Whether self can move to `other`, based on shared entrances
-    pub fn can_move_to(&self, self_index: usize, other: &Tile, other_index: usize) -> bool {
-        use Direction::*;
+    /// Find all reachable tiles from the current position through connected entrances
+    pub fn find_reachable_tiles(&self, start_index: usize, tiles: &[Tile]) -> Vec<usize> {
+        let mut visited = std::collections::HashSet::new();
+        let mut reachable = Vec::new();
+        let mut to_visit = vec![start_index];
 
-        let (sx, sy) = Tile::position(self_index);
-        let (ox, oy) = Tile::position(other_index);
+        visited.insert(start_index);
 
-        let dx = (ox as isize) - (sx as isize);
-        let dy = (oy as isize) - (sy as isize);
+        while let Some(current_index) = to_visit.pop() {
+            reachable.push(current_index);
 
-        match (dx, dy) {
-            (0, -1) => self.entrances.contains(&Up) && other.entrances.contains(&Down),
-            (0, 1) => self.entrances.contains(&Down) && other.entrances.contains(&Up),
-            (-1, 0) => self.entrances.contains(&Left) && other.entrances.contains(&Right),
-            (1, 0) => self.entrances.contains(&Right) && other.entrances.contains(&Left),
-            _ => false,
+            let current_tile = &tiles[current_index];
+            let (cx, cy) = Tile::position(current_index);
+
+            // Check all four directions
+            let directions = [
+                (0, -1, Direction::Up, Direction::Down), // Up
+                (0, 1, Direction::Down, Direction::Up), // Down
+                (-1, 0, Direction::Left, Direction::Right), // Left
+                (1, 0, Direction::Right, Direction::Left), // Right
+            ];
+
+            for (dx, dy, from_dir, to_dir) in directions {
+                let nx = ((cx as isize) + dx) as usize;
+                let ny = ((cy as isize) + dy) as usize;
+
+                // Check bounds
+                if nx >= MAP_SIZE || ny >= MAP_SIZE {
+                    continue;
+                }
+
+                let next_index = Tile::index(nx, ny);
+
+                // Skip if already visited
+                if visited.contains(&next_index) {
+                    continue;
+                }
+
+                let next_tile = &tiles[next_index];
+
+                // Check if entrances connect
+                if
+                    current_tile.entrances.contains(&from_dir) &&
+                    next_tile.entrances.contains(&to_dir)
+                {
+                    visited.insert(next_index);
+                    to_visit.push(next_index);
+                }
+            }
         }
+
+        reachable
     }
 
     /// Swaps state with another tile, including grid position and entrances

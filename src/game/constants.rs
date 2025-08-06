@@ -19,7 +19,7 @@ pub const FLOOR_COLOR: u32 = 0x000000ff; // Black
 // card colors
 pub const CARD_DUMMY_COLOR: u32 = 0xffffff20; // Light gray
 pub const CARD_HOVER_FILL_COLOR: u32 = 0xffffff80;
-pub const CARD_BUTTON_A_COLOR: u32 = 0x22cc22ff;
+pub const CARD_BUTTON_A_COLOR: u32 = 0x118811ff;
 pub const CARD_BUTTON_B_COLOR: u32 = 0xff2222ff;
 
 // frame

@@ -81,14 +81,16 @@ impl GameState {
 
     /// Helper to get the current turn player by ID (returns Option<&Player>)
     fn get_turn_player(&self) -> Option<&Player> {
-        let player_id = self.current_turn.as_ref()?.player_id.as_str();
-        self.players.iter().find(|p| p.id.to_string() == player_id)
+        let user_id = self.current_turn.as_ref()?.player_id.as_str();
+        let player_id = self.user_id_to_player_id.get(user_id)?;
+        self.players.iter().find(|p| &p.id == player_id)
     }
 
     /// Helper to get the current turn player as mutable
     fn get_turn_player_mut(&mut self) -> Option<&mut Player> {
-        let player_id = self.current_turn.as_ref()?.player_id.as_str();
-        self.players.iter_mut().find(|p| p.id.to_string() == player_id)
+        let user_id = self.current_turn.as_ref()?.player_id.as_str();
+        let player_id = self.user_id_to_player_id.get(user_id)?;
+        self.players.iter_mut().find(|p| &p.id == player_id)
     }
 
     /// Returns a reference to the Player struct for the current user, if any.
@@ -105,6 +107,12 @@ impl GameState {
     /// Returns a mutable reference to the Player struct for the current user, if any.
     pub fn get_local_player_mut(&mut self) -> Option<&mut Player> {
         let player_id = self.user_id_to_player_id.get(&self.user)?;
+        self.players.iter_mut().find(|p| &p.id == player_id)
+    }
+
+    /// Returns a mutable reference to a player by user_id
+    pub fn get_player_by_user_id(&mut self, user_id: &str) -> Option<&mut Player> {
+        let player_id = self.user_id_to_player_id.get(user_id)?;
         self.players.iter_mut().find(|p| &p.id == player_id)
     }
 
@@ -169,6 +177,10 @@ impl GameState {
                     ServerToClient::TileRotated { tile_index, clockwise, player_id } => {
                         receive_tile_rotation(self, &tile_index, &clockwise, &player_id);
                     }
+
+                    ServerToClient::PlayerMoved { player_id, new_position } => {
+                        receive_player_moved(self, &player_id, &new_position);
+                    }
                 }
             }
 
@@ -189,7 +201,11 @@ impl GameState {
 
         if self.get_local_player().is_some() {
             draw_hand(self, self.frame as f64);
-            draw_turn_label(self.is_my_turn(), self);
+            if self.current_turn.is_some() {
+                draw_turn_label(self.is_my_turn(), self);
+            } else {
+                draw_waiting_for_players(self);
+            }
         } else {
             draw_waiting_for_players(self);
         }

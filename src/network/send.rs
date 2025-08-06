@@ -35,3 +35,11 @@ pub fn send_tile_rotation(tile_index: usize, clockwise: bool) {
         let _ = conn.send(&msg);
     }
 }
+
+pub fn send_move(new_position: (usize, usize)) {
+    log!("🚀 [SEND] Player move to: {:?}", new_position);
+    let msg = ClientToServer::MovePlayer { new_position };
+    if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
+        let _ = conn.send(&msg);
+    }
+}

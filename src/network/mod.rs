@@ -20,4 +20,7 @@ pub enum ClientToServer {
         tile_index: usize,
         clockwise: bool,
     },
+    MovePlayer {
+        new_position: (usize, usize),
+    },
 }

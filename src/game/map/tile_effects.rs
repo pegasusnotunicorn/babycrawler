@@ -14,10 +14,10 @@ pub fn highlight_tiles_for_effect(
         CardEffect::Dummy => {}
 
         CardEffect::MoveOneTile => {
-            for (i, tile) in tiles.iter_mut().enumerate() {
-                if current_tile.can_move_to(current_index, tile, i) {
-                    tile.is_highlighted = true;
-                }
+            // Find all reachable tiles through connected entrances
+            let reachable_indices = current_tile.find_reachable_tiles(current_index, tiles);
+            for &index in &reachable_indices {
+                tiles[index].is_highlighted = true;
             }
         }
 
