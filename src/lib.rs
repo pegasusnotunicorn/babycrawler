@@ -10,7 +10,7 @@ use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu };
-use crate::game::animation::{ update_animations, AnimatedCard };
+use crate::game::animation::{ update_animations, AnimatedCard, AnimatedPlayer };
 use crate::game::debug::draw_debug;
 use crate::game::cards::{ draw_play_area, draw_hand };
 use crate::game::cards::card::Card;
@@ -44,6 +44,7 @@ pub struct GameState {
     pub debug: bool,
     pub user_id_to_player_id: HashMap<String, PlayerId>,
     pub animated_card: Option<AnimatedCard>,
+    pub animated_player: Option<AnimatedPlayer>,
     pub play_area: Vec<Card>,
     pub current_turn: Option<CurrentTurn>,
 }
@@ -63,6 +64,7 @@ impl GameState {
             in_lobby: Vec::new(),
             user_id_to_player_id: HashMap::new(),
             animated_card: None,
+            animated_player: None,
             play_area: {
                 let mut play_area = Vec::new();
                 fill_with_dummies(&mut play_area, HAND_SIZE);
@@ -178,8 +180,8 @@ impl GameState {
                         receive_tile_rotation(self, &tile_index, &clockwise, &player_id);
                     }
 
-                    ServerToClient::PlayerMoved { player_id, new_position } => {
-                        receive_player_moved(self, &player_id, &new_position);
+                    ServerToClient::PlayerMoved { player_id, new_position, is_canceled } => {
+                        receive_player_moved(self, &player_id, &new_position, is_canceled);
                     }
                 }
             }

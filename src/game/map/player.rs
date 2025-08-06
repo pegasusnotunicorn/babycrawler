@@ -46,17 +46,35 @@ impl Player {
         self.original_position = self.position;
     }
 
-    pub fn draw(&self, tile_size: u32, offset_x: u32, offset_y: u32) {
-        let (gx, gy) = self.position;
-        let diameter = tile_size / 2;
+    pub fn draw(
+        &self,
+        tile_size: u32,
+        offset_x: u32,
+        offset_y: u32,
+        animated_pos: Option<(f32, f32)>
+    ) {
+        let (center_x, center_y) = if let Some((ax, ay)) = animated_pos {
+            // Use animated position (already center coordinates)
+            (ax as u32, ay as u32)
+        } else {
+            // Use regular tile-based position
+            let (gx, gy) = self.position;
+            let center_x = offset_x + (gx as u32) * tile_size + tile_size / 2;
+            let center_y = offset_y + (gy as u32) * tile_size + tile_size / 2;
+            (center_x, center_y)
+        };
+
+        let diameter = tile_size / 3; // Make player smaller to fit better in tile
         let radius = diameter / 2;
-        let center_x = offset_x + (gx as u32) * tile_size + tile_size / 2 - radius;
-        let center_y = offset_y + (gy as u32) * tile_size + tile_size / 2 - radius;
         let color = match self.id {
             PlayerId::Player1 => PLAYER_1_COLOR,
             PlayerId::Player2 => PLAYER_2_COLOR,
         };
 
-        circ!(d = diameter as u32, x = center_x, y = center_y, color = color);
+        // Adjust coordinates to account for circle being drawn from top-left corner
+        let circle_x = center_x - radius;
+        let circle_y = center_y - radius;
+
+        circ!(d = diameter as u32, x = circle_x, y = circle_y, color = color);
     }
 }

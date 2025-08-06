@@ -86,8 +86,17 @@ pub fn handle_rotate_tile(
     broadcast_tile_rotation(tile_index, clockwise, user_id);
 }
 
-pub fn handle_move_player(channel: &mut GameChannel, user_id: &str, new_position: (usize, usize)) {
-    log!("[GameChannel] MovePlayer received from {user_id}: new_position={:?}", new_position);
+pub fn handle_move_player(
+    channel: &mut GameChannel,
+    user_id: &str,
+    new_position: (usize, usize),
+    is_canceled: bool
+) {
+    log!(
+        "[GameChannel] MovePlayer received from {user_id}: new_position={:?}, is_canceled={}",
+        new_position,
+        is_canceled
+    );
 
     // Use helper function to get and update the player
     if let Some(player) = get_player_mut(channel, user_id) {
@@ -98,5 +107,5 @@ pub fn handle_move_player(channel: &mut GameChannel, user_id: &str, new_position
     }
 
     // Broadcast the move to all clients
-    broadcast_player_moved(user_id, new_position);
+    broadcast_player_moved(user_id, new_position, is_canceled);
 }

@@ -209,6 +209,81 @@ impl Tile {
         reachable
     }
 
+    /// Find the shortest path between two tiles using BFS
+    pub fn find_path(
+        start_index: usize,
+        target_index: usize,
+        tiles: &[Tile]
+    ) -> Option<Vec<usize>> {
+        if start_index == target_index {
+            return Some(vec![start_index]);
+        }
+
+        let mut visited = std::collections::HashSet::new();
+        let mut queue = std::collections::VecDeque::new();
+        let mut parent = std::collections::HashMap::new();
+
+        queue.push_back(start_index);
+        visited.insert(start_index);
+
+        while let Some(current_index) = queue.pop_front() {
+            if current_index == target_index {
+                // Reconstruct path
+                let mut path = Vec::new();
+                let mut current = target_index;
+                while current != start_index {
+                    path.push(current);
+                    current = parent[&current];
+                }
+                path.push(start_index);
+                path.reverse();
+                return Some(path);
+            }
+
+            let current_tile = &tiles[current_index];
+            let (cx, cy) = Tile::position(current_index);
+
+            // Check all four directions
+            let directions = [
+                (0, -1, Direction::Up, Direction::Down), // Up
+                (0, 1, Direction::Down, Direction::Up), // Down
+                (-1, 0, Direction::Left, Direction::Right), // Left
+                (1, 0, Direction::Right, Direction::Left), // Right
+            ];
+
+            for (dx, dy, from_dir, to_dir) in directions {
+                let nx = ((cx as isize) + dx) as usize;
+                let ny = ((cy as isize) + dy) as usize;
+
+                // Check bounds
+                if nx >= MAP_SIZE || ny >= MAP_SIZE {
+                    continue;
+                }
+
+                let next_index = Tile::index(nx, ny);
+
+                // Skip if already visited
+                if visited.contains(&next_index) {
+                    continue;
+                }
+
+                let next_tile = &tiles[next_index];
+
+                // Check if entrances connect
+                if
+                    current_tile.entrances.contains(&from_dir) &&
+                    next_tile.entrances.contains(&to_dir)
+                {
+                    visited.insert(next_index);
+                    parent.insert(next_index, current_index);
+                    queue.push_back(next_index);
+                }
+            }
+        }
+
+        None // No path found
+    }
+
     /// Swaps state with another tile, including grid position and entrances
     pub fn swap_with(&mut self, other: &mut Tile) {
         std::mem::swap(&mut self.entrances, &mut other.entrances);

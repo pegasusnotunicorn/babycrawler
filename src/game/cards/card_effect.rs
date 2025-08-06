@@ -45,7 +45,7 @@ impl CardEffect {
         let new_y = tile_index / MAP_SIZE;
         let new_position = (new_x, new_y);
 
-        send_move(new_position);
+        send_move(new_position, false);
     }
 
     fn apply_rotate_card(&self, state: &mut GameState, tile_index: usize) {

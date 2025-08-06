@@ -4,10 +4,10 @@ pub const MAP_SIZE: usize = 5;
 pub const HAND_SIZE: usize = 3;
 
 // Entrance count weights for tile random generation
-pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 0.5;
+pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
 pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
-pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 3.0;
-pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.5;
+pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
+pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
 
 // colors
 pub const GAME_BG_COLOR: u32 = 0x222222ff; // Dark gray

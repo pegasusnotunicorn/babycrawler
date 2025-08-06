@@ -112,8 +112,8 @@ impl os::server::channel::ChannelHandler for GameChannel {
             ClientToServer::RotateTile { tile_index, clockwise } => {
                 handle_rotate_tile(self, user_id, tile_index, clockwise);
             }
-            ClientToServer::MovePlayer { new_position } => {
-                handle_move_player(self, user_id, new_position);
+            ClientToServer::MovePlayer { new_position, is_canceled } => {
+                handle_move_player(self, user_id, new_position, is_canceled);
             }
         }
         Ok(())

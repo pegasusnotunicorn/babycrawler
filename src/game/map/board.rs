@@ -54,6 +54,23 @@ pub fn draw_board(state: &GameState, frame: f64, tile_size: u32, offset_x: u32, 
 
     // Draw players
     for player in state.players.iter() {
-        player.draw(tile_size, offset_x, offset_y);
+        // Check if this player is being animated
+        let animated_pos = if let Some(anim) = &state.animated_player {
+            // Find the user_id that maps to this player's PlayerId
+            let user_id_for_player = state.user_id_to_player_id
+                .iter()
+                .find(|(_, player_id)| **player_id == player.id)
+                .map(|(user_id, _)| user_id);
+
+            if let Some(user_id) = user_id_for_player {
+                if anim.player_id == *user_id { Some(anim.pos) } else { None }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        player.draw(tile_size, offset_x, offset_y, animated_pos);
     }
 }

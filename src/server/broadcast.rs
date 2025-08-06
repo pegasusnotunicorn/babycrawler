@@ -79,14 +79,16 @@ pub fn broadcast_tile_rotation(tile_index: usize, clockwise: bool, player_id: &s
     });
 }
 
-pub fn broadcast_player_moved(player_id: &str, new_position: (usize, usize)) {
+pub fn broadcast_player_moved(player_id: &str, new_position: (usize, usize), is_canceled: bool) {
     log!(
-        "[GameChannel] Broadcasting player moved: player={}, new_position={:?}",
+        "[GameChannel] Broadcasting player moved: player={}, new_position={:?}, is_canceled={}",
         player_id,
-        new_position
+        new_position,
+        is_canceled
     );
     broadcast_generic(ServerToClient::PlayerMoved {
         player_id: player_id.to_string(),
         new_position,
+        is_canceled,
     });
 }

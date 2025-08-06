@@ -120,7 +120,9 @@ pub fn receive_card_cancel(
                         "📨 [RECEIVE] Moving player back to original position: {:?}",
                         player.original_position
                     );
-                    send_move(player.original_position);
+
+                    // Send move with canceled flag
+                    send_move(player.original_position, true);
                 } else {
                     log!("📨 [RECEIVE] Could not find player for move cancel");
                 }
@@ -163,14 +165,52 @@ pub fn receive_tile_rotation(
 pub fn receive_player_moved(
     game_state: &mut GameState,
     player_id: &str,
-    new_position: &(usize, usize)
+    new_position: &(usize, usize),
+    is_canceled: bool
 ) {
-    log!("📨 [RECEIVE] Player moved: player={}, new_position={:?}", player_id, new_position);
+    log!(
+        "📨 [RECEIVE] Player moved: player={}, new_position={:?}, is_canceled={}",
+        player_id,
+        new_position,
+        is_canceled
+    );
 
-    // Use GameState method to get and update the player
+    // Get board layout before mutable borrow
+    let (_, _, tile_size, offset_x, offset_y) = game_state.get_board_layout(false);
+
+    // Get the current position of the player
     if let Some(player) = game_state.get_player_by_user_id(player_id) {
-        player.position = *new_position;
-        log!("📨 [RECEIVE] Updated player {:?} position to {:?}", player.id, new_position);
+        let current_position = player.position;
+        log!(
+            "📨 [RECEIVE] Player {:?} moving from {:?} to {:?}",
+            player.id,
+            current_position,
+            new_position
+        );
+
+        if is_canceled {
+            // Use direct animation for canceled movements
+            crate::game::animation::start_direct_player_movement_animation(
+                game_state,
+                player_id,
+                current_position,
+                *new_position,
+                tile_size,
+                offset_x,
+                offset_y
+            );
+        } else {
+            // Use path-based animation for normal movements
+            crate::game::animation::start_player_movement_animation(
+                game_state,
+                player_id,
+                current_position,
+                *new_position,
+                tile_size,
+                offset_x,
+                offset_y
+            );
+        }
     } else {
         log!("📨 [RECEIVE] Could not find PlayerId for user_id: {}", player_id);
     }

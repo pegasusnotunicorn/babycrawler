@@ -36,9 +36,9 @@ pub fn send_tile_rotation(tile_index: usize, clockwise: bool) {
     }
 }
 
-pub fn send_move(new_position: (usize, usize)) {
-    log!("🚀 [SEND] Player move to: {:?}", new_position);
-    let msg = ClientToServer::MovePlayer { new_position };
+pub fn send_move(new_position: (usize, usize), is_canceled: bool) {
+    log!("🚀 [SEND] Player move to: {:?} (canceled: {})", new_position, is_canceled);
+    let msg = ClientToServer::MovePlayer { new_position, is_canceled };
     if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
         let _ = conn.send(&msg);
     }

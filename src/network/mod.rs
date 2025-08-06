@@ -22,5 +22,6 @@ pub enum ClientToServer {
     },
     MovePlayer {
         new_position: (usize, usize),
+        is_canceled: bool,
     },
 }

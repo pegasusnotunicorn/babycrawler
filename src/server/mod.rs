@@ -37,5 +37,6 @@ pub enum ServerToClient {
     PlayerMoved {
         player_id: String,
         new_position: (usize, usize),
+        is_canceled: bool,
     },
 }
