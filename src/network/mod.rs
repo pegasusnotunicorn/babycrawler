@@ -27,37 +27,43 @@ pub enum ClientToServer {
         new_position: (usize, usize),
         is_canceled: bool,
     },
+    SwapTiles {
+        tile_index_1: usize,
+        tile_index_2: usize,
+    },
 }
 
 #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
 pub enum ServerToClient {
-    ConnectedUsers { users: Vec<String> },
-    BoardState { 
+    ConnectedUsers {
+        users: Vec<String>,
+    },
+    BoardState {
         tiles: Vec<crate::game::map::tile::Tile>,
         players: Vec<crate::game::map::player::Player>,
         current_turn: Option<crate::server::CurrentTurn>,
     },
-    CardSelected { 
-        user_id: String, 
-        card_index: usize, 
+    CardSelected {
+        user_id: String,
+        card_index: usize,
         card: Card,
         original_position: Option<(usize, usize)>,
     },
-    CardCanceled { 
-        user_id: String, 
-        card_index: usize, 
+    CardCanceled {
+        user_id: String,
+        card_index: usize,
         card: Card,
     },
-    CardConfirmed { 
-        user_id: String, 
+    CardConfirmed {
+        user_id: String,
         card: Card,
     },
-    TileRotated { 
-        tile_index: usize, 
+    TileRotated {
+        tile_index: usize,
         clockwise: bool,
     },
-    PlayerMoved { 
-        player_id: String, 
+    PlayerMoved {
+        player_id: String,
         new_position: (usize, usize),
     },
 }

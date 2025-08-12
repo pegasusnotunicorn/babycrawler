@@ -118,6 +118,9 @@ impl os::server::channel::ChannelHandler for GameChannel {
             ClientToServer::MovePlayer { new_position, is_canceled } => {
                 handle_move_player(self, user_id, new_position, is_canceled);
             }
+            ClientToServer::SwapTiles { tile_index_1, tile_index_2 } => {
+                handle_swap_tiles(self, user_id, tile_index_1, tile_index_2);
+            }
         }
         Ok(())
     }

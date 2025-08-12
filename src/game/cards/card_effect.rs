@@ -1,8 +1,8 @@
 use crate::game::constants::MAP_SIZE;
-use crate::game::map::{ Tile, clear_highlights, Player };
+use crate::game::map::Tile;
 use crate::game::animation::start_tile_rotation_animation;
 use crate::GameState;
-use crate::network::send::{ send_tile_rotation, send_move };
+use crate::network::send::{ send_tile_rotation, send_move, send_swap_tiles };
 
 use turbo::*;
 use serde::{ Serialize, Deserialize };
@@ -59,40 +59,29 @@ impl CardEffect {
     }
 
     fn apply_swap_card(&self, state: &mut GameState, tile_index: usize) {
-        let (_, current_index) = Self::current_player_and_index(state);
-
-        if current_index == tile_index {
+        // Check if this tile is selectable (within 1 tile distance from player)
+        if !state.tiles[tile_index].is_highlighted {
             return;
         }
 
-        let (low, high) = if current_index < tile_index {
-            (current_index, tile_index)
-        } else {
-            (tile_index, current_index)
-        };
-
-        let (left, right) = state.tiles.split_at_mut(high);
-        let (_a, b) = if current_index < tile_index {
-            (&mut left[low], &mut right[0])
-        } else {
-            (&mut right[0], &mut left[low])
-        };
-
-        if b.is_highlighted {
-            state.tiles.swap(current_index, tile_index);
-            Self::end_turn(state);
+        // If this tile is already selected, deselect it
+        if let Some(pos) = state.swap_tiles_selected.iter().position(|&i| i == tile_index) {
+            state.swap_tiles_selected.remove(pos);
+            state.tiles[tile_index].is_highlighted = false;
+            return;
         }
-    }
 
-    fn current_player_and_index(state: &mut GameState) -> (&mut Player, usize) {
-        let player = state.get_turn_player_mut().unwrap();
-        let (px, py) = player.position;
-        (player, py * MAP_SIZE + px)
-    }
+        state.swap_tiles_selected.push(tile_index);
+        state.tiles[tile_index].is_highlighted = true;
 
-    fn end_turn(state: &mut GameState) {
-        state.selected_card = None;
-        clear_highlights(&mut state.tiles);
+        // If we have 2 tiles selected, send swap request
+        if state.swap_tiles_selected.len() == 2 {
+            let tile1 = state.swap_tiles_selected[0];
+            let tile2 = state.swap_tiles_selected[1];
+
+            send_swap_tiles(tile1, tile2);
+            state.swap_tiles_selected.clear();
+        }
     }
 
     // Add a function to revert all tiles to their original_rotation
@@ -105,6 +94,31 @@ impl CardEffect {
                 tile.rotate_clockwise(diff as usize);
             }
             tile.rotation_anim = None;
+        }
+    }
+
+    // Add a function to revert all tiles to their original positions
+    // This function now uses the deferred approach - it collects tiles that need to move
+    // and adds them to pending_swaps, then starts animations for visual movement
+    pub fn revert_tile_positions(state: &mut GameState) {
+        // Clear swap selection and highlights
+        state.swap_tiles_selected.clear();
+        crate::game::map::clear_highlights(&mut state.tiles);
+
+        // For tile reverts, use the same deferred approach as swaps
+        // First collect all tiles that need to move
+        let mut tiles_to_animate: Vec<(usize, usize)> = Vec::new();
+        for (current_index, tile) in state.tiles.iter().enumerate() {
+            let target_index = tile.original_location;
+            if current_index != target_index {
+                tiles_to_animate.push((current_index, target_index));
+            }
+        }
+
+        // Then add them to pending swaps and start animations
+        for (current_index, target_index) in tiles_to_animate {
+            state.pending_swaps.push((current_index, target_index));
+            crate::game::animation::animate_tile_to_index(state, current_index, target_index);
         }
     }
 }

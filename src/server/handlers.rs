@@ -126,3 +126,28 @@ pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card)
     // Broadcast the confirmation to all clients
     broadcast_card_confirmed(&card, user_id);
 }
+
+pub fn handle_swap_tiles(
+    channel: &mut GameChannel,
+    user_id: &str,
+    tile_index_1: usize,
+    tile_index_2: usize
+) {
+    log!(
+        "[GameChannel] SwapTiles received from {user_id}: {} <-> {}",
+        tile_index_1,
+        tile_index_2
+    );
+    
+    // Validate that the tiles are within bounds
+    if tile_index_1 >= channel.board_tiles.len() || tile_index_2 >= channel.board_tiles.len() {
+        log!("[GameChannel] Invalid tile indices for swap: {} or {} out of bounds", tile_index_1, tile_index_2);
+        return;
+    }
+    
+    // Swap the tiles in the board
+    channel.board_tiles.swap(tile_index_1, tile_index_2);
+    
+    // Broadcast the swap to all clients
+    broadcast_tiles_swapped(tile_index_1, tile_index_2);
+}

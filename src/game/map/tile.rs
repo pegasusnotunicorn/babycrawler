@@ -20,6 +20,7 @@ pub struct Tile {
     pub rotation_anim: Option<TileRotationAnim>,
     pub original_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
     pub current_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
+    pub original_location: usize, // original tile index position
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -58,6 +59,7 @@ impl Tile {
             rotation_anim: None,
             original_rotation: 0,
             current_rotation: 0,
+            original_location: 0, // Will be set when tile is created
         }
     }
 
@@ -316,7 +318,15 @@ impl Tile {
     }
 
     /// Draws the tile, including walls and floor and optional highlight pulse
-    pub fn draw(&self, x: i32, y: i32, tile_size: u32, should_highlight: bool, frame: f64) {
+    pub fn draw(
+        &self,
+        x: i32,
+        y: i32,
+        tile_size: u32,
+        should_highlight: bool,
+        frame: f64,
+        is_swap_selected: bool
+    ) {
         let wall_width = 5;
         let inner_size = tile_size.saturating_sub((wall_width as u32) * 2);
         let inner_x = x + wall_width;
@@ -395,6 +405,34 @@ impl Tile {
                     }
                 }
             }
+        }
+
+        // Draw X marker if tile is selected for swapping
+        if is_swap_selected {
+            let x_color = 0xff0000ff; // Red color for X
+            let x_width = 8;
+            let x_offset = ((tile_size as i32) - x_width) / 2;
+
+            // Draw diagonal lines to form an X
+            // Line from top-left to bottom-right
+            rect!(
+                x = x + x_offset,
+                y = y + x_offset,
+                w = x_width,
+                h = x_width,
+                color = x_color,
+                rotation = 45
+            );
+
+            // Line from top-right to bottom-left
+            rect!(
+                x = x + x_offset,
+                y = y + x_offset,
+                w = x_width,
+                h = x_width,
+                color = x_color,
+                rotation = -45
+            );
         }
     }
 }

@@ -2,9 +2,15 @@ use turbo::*;
 use crate::game::cards::card::Card;
 use crate::game::cards::card_input::update_state_with_card;
 use crate::game::animation::start_tile_rotation_animation;
+use crate::game::animation::{
+    start_player_movement_animation,
+    start_direct_player_movement_animation,
+    animate_tile_to_index,
+};
 use crate::game::cards::card_effect::CardEffect;
 use crate::network::send::send_move;
 use crate::GameState;
+use crate::game::map::clear_highlights;
 
 pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
     log!("📨 [RECEIVE] Connected users: {:?}", users);
@@ -87,7 +93,8 @@ pub fn receive_card_selection(
             }
         }
         CardEffect::SwapCard => {
-            // Do nothing
+            // Clear any previous swap selection
+            game_state.swap_tiles_selected.clear();
         }
         CardEffect::Dummy => {
             // Do nothing
@@ -131,10 +138,14 @@ pub fn receive_card_cancel(
             }
         }
         CardEffect::RotateCard => {
-            CardEffect::revert_tile_rotations(&mut game_state.tiles);
+            if !is_local_player {
+                CardEffect::revert_tile_rotations(&mut game_state.tiles);
+            }
         }
         CardEffect::SwapCard => {
-            // Do nothing
+            if !is_local_player {
+                CardEffect::revert_tile_positions(game_state);
+            }
         }
         CardEffect::Dummy => {
             // Do nothing
@@ -192,7 +203,7 @@ pub fn receive_player_moved(
 
         if is_canceled {
             // Use direct animation for canceled movements
-            crate::game::animation::start_direct_player_movement_animation(
+            start_direct_player_movement_animation(
                 game_state,
                 player_id,
                 current_position,
@@ -203,7 +214,7 @@ pub fn receive_player_moved(
             );
         } else {
             // Use path-based animation for normal movements
-            crate::game::animation::start_player_movement_animation(
+            start_player_movement_animation(
                 game_state,
                 player_id,
                 current_position,
@@ -224,7 +235,25 @@ pub fn receive_card_confirmed(game_state: &mut GameState, card: &Card, player_id
     // If it's the local player's card being confirmed, clear the selected card
     if game_state.user == player_id {
         game_state.selected_card = None;
-        // Clear tile highlights
-        crate::game::map::tile::clear_highlights(&mut game_state.tiles);
+        // Clear tile highlights and swap selection
+        clear_highlights(&mut game_state.tiles);
+        game_state.swap_tiles_selected.clear();
     }
+}
+
+pub fn receive_tiles_swapped(
+    game_state: &mut GameState,
+    tile_index_1: &usize,
+    tile_index_2: &usize
+) {
+    log!("📨 [RECEIVE] Tiles swapped: {} <-> {}", tile_index_1, tile_index_2);
+    // For tile swaps, we animate first, then swap when animation completes
+    // This keeps the indices consistent during animation
+
+    // Track this swap to be performed when animation completes
+    game_state.pending_swaps.push((*tile_index_1, *tile_index_2));
+
+    // Start animations for both tiles
+    animate_tile_to_index(game_state, *tile_index_1, *tile_index_2);
+    animate_tile_to_index(game_state, *tile_index_2, *tile_index_1);
 }

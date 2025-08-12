@@ -51,3 +51,11 @@ pub fn send_confirm_card(card: &Card) {
         let _ = conn.send(&msg);
     }
 }
+
+pub fn send_swap_tiles(tile_index_1: usize, tile_index_2: usize) {
+    log!("🚀 [SEND] Swap tiles: {} <-> {}", tile_index_1, tile_index_2);
+    let msg = ClientToServer::SwapTiles { tile_index_1, tile_index_2 };
+    if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
+        let _ = conn.send(&msg);
+    }
+}

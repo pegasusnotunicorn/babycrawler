@@ -62,12 +62,29 @@ pub struct AnimatedPlayer {
     pub animating: bool,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    borsh::BorshDeserialize,
+    borsh::BorshSerialize,
+    serde::Serialize,
+    serde::Deserialize
+)]
+pub struct AnimatedTile {
+    pub tile_index: usize, // which tile is being animated
+    pub pos: (f32, f32), // current screen position
+    pub velocity: (f32, f32), // current velocity
+    pub target_index: usize, // target tile index
+    pub animating: bool,
+}
+
 pub fn update_animations(state: &mut GameState) {
     if update_animated_card_spring(state) {
         handle_animated_card_complete(state);
     }
     update_tile_rotation_animations(state, 1.0 / 60.0);
     update_player_movement_animations(state);
+    update_tile_animations(state);
 }
 
 /// Generic spring-to-target function for 2D positions.
@@ -300,5 +317,90 @@ pub fn update_player_movement_animations(state: &mut GameState) {
                 }
             }
         }
+    }
+}
+
+/// Simple function to animate one tile to a specific index
+pub fn animate_tile_to_index(state: &mut GameState, tile_index: usize, target_index: usize) {
+    // Get board layout for animation
+    let (_, _, tile_size, offset_x, offset_y) = state.get_board_layout(false);
+
+    // Calculate current screen position
+    let (from_x, from_y) = Tile::screen_position(tile_index, tile_size, offset_x, offset_y);
+
+    // Create new animated tile
+    let animated_tile = AnimatedTile {
+        tile_index,
+        pos: (from_x as f32, from_y as f32),
+        velocity: (0.0, 0.0),
+        target_index,
+        animating: true,
+    };
+
+    // Add to list of animated tiles
+    state.animated_tiles.push(animated_tile);
+}
+
+/// Update all tile animations
+pub fn update_tile_animations(state: &mut GameState) {
+    // Get board layout before mutable borrow
+    let (_, _, tile_size, offset_x, offset_y) = state.get_board_layout(false);
+
+    // Update each animated tile
+    let mut completed_indices = Vec::new();
+
+    for (i, anim) in state.animated_tiles.iter_mut().enumerate() {
+        if anim.animating {
+            // Calculate target screen position
+            let (target_x, target_y) = Tile::screen_position(
+                anim.target_index,
+                tile_size,
+                offset_x,
+                offset_y
+            );
+            let target_pos = (target_x as f32, target_y as f32);
+
+            let (new_pos, new_velocity, snapped) = spring_to_target(
+                anim.pos,
+                anim.velocity,
+                target_pos,
+                0.3, // spring - moderate speed
+                0.4, // friction - some bounce
+                2.0, // snap_distance
+                1.0 // snap_velocity
+            );
+
+            anim.pos = new_pos;
+            anim.velocity = new_velocity;
+
+            if snapped {
+                // Animation complete - mark for removal
+                completed_indices.push(i);
+            }
+        }
+    }
+
+    // Remove completed animations (in reverse order to maintain indices)
+    for &index in completed_indices.iter().rev() {
+        state.animated_tiles.remove(index);
+    }
+
+    // Check if we have any pending swaps that can now be completed
+    // (when both tiles in a swap have finished animating)
+    let mut completed_swaps = Vec::new();
+    for (i, (tile1, tile2)) in state.pending_swaps.iter().enumerate() {
+        let tile1_animating = state.animated_tiles.iter().any(|anim| anim.tile_index == *tile1);
+        let tile2_animating = state.animated_tiles.iter().any(|anim| anim.tile_index == *tile2);
+
+        if !tile1_animating && !tile2_animating {
+            // Both tiles have finished animating, perform the swap
+            state.tiles.swap(*tile1, *tile2);
+            completed_swaps.push(i);
+        }
+    }
+
+    // Remove completed swaps (in reverse order to maintain indices)
+    for &index in completed_swaps.iter().rev() {
+        state.pending_swaps.remove(index);
     }
 }

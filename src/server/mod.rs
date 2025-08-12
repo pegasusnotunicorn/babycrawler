@@ -43,4 +43,8 @@ pub enum ServerToClient {
         new_position: (usize, usize),
         is_canceled: bool,
     },
+    TilesSwapped {
+        tile_index_1: usize,
+        tile_index_2: usize,
+    },
 }

@@ -100,3 +100,11 @@ pub fn broadcast_player_moved(player_id: &str, new_position: (usize, usize), is_
         is_canceled,
     });
 }
+
+pub fn broadcast_tiles_swapped(tile_index_1: usize, tile_index_2: usize) {
+    log!("[GameChannel] Broadcasting tiles swapped: {} <-> {}", tile_index_1, tile_index_2);
+    broadcast_generic(ServerToClient::TilesSwapped {
+        tile_index_1,
+        tile_index_2,
+    });
+}

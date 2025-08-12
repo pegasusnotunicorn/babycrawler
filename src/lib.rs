@@ -10,7 +10,7 @@ use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu };
-use crate::game::animation::{ update_animations, AnimatedCard, AnimatedPlayer };
+use crate::game::animation::{ update_animations, AnimatedCard, AnimatedPlayer, AnimatedTile };
 use crate::game::debug::draw_debug;
 use crate::game::cards::{ draw_play_area, draw_hand };
 use crate::game::cards::card::Card;
@@ -45,8 +45,11 @@ pub struct GameState {
     pub user_id_to_player_id: HashMap<String, PlayerId>,
     pub animated_card: Option<AnimatedCard>,
     pub animated_player: Option<AnimatedPlayer>,
+    pub animated_tiles: Vec<AnimatedTile>, // Track multiple tile animations
     pub play_area: Vec<Card>,
     pub current_turn: Option<CurrentTurn>,
+    pub swap_tiles_selected: Vec<usize>, // Track tiles selected for swapping
+    pub pending_swaps: Vec<(usize, usize)>, // Track tiles that will be swapped when animation completes
 }
 
 impl GameState {
@@ -65,12 +68,15 @@ impl GameState {
             user_id_to_player_id: HashMap::new(),
             animated_card: None,
             animated_player: None,
+            animated_tiles: Vec::new(),
             play_area: {
                 let mut play_area = Vec::new();
                 fill_with_dummies(&mut play_area, HAND_SIZE);
                 play_area
             },
             current_turn: None,
+            swap_tiles_selected: Vec::new(),
+            pending_swaps: Vec::new(),
         }
     }
 
@@ -86,13 +92,6 @@ impl GameState {
         let user_id = self.current_turn.as_ref()?.player_id.as_str();
         let player_id = self.user_id_to_player_id.get(user_id)?;
         self.players.iter().find(|p| &p.id == player_id)
-    }
-
-    /// Helper to get the current turn player as mutable
-    fn get_turn_player_mut(&mut self) -> Option<&mut Player> {
-        let user_id = self.current_turn.as_ref()?.player_id.as_str();
-        let player_id = self.user_id_to_player_id.get(user_id)?;
-        self.players.iter_mut().find(|p| &p.id == player_id)
     }
 
     /// Returns a reference to the Player struct for the current user, if any.
@@ -185,6 +184,10 @@ impl GameState {
 
                     ServerToClient::PlayerMoved { player_id, new_position, is_canceled } => {
                         receive_player_moved(self, &player_id, &new_position, is_canceled);
+                    }
+
+                    ServerToClient::TilesSwapped { tile_index_1, tile_index_2 } => {
+                        receive_tiles_swapped(self, &tile_index_1, &tile_index_2);
                     }
                 }
             }

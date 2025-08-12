@@ -196,9 +196,12 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
 
 /// Moves a card from the play area to the first empty hand slot, updates state, and sets up spring-back animation.
 pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected: &Card) {
-    // If the selected card is a rotate card, revert tile rotations
     if let CardEffect::RotateCard = selected.effect {
         CardEffect::revert_tile_rotations(&mut state.tiles);
+    }
+
+    if let CardEffect::SwapCard = selected.effect {
+        CardEffect::revert_tile_positions(state);
     }
 
     let play_area_row = get_play_area_row(state);

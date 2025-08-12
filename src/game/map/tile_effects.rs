@@ -32,6 +32,8 @@ pub fn highlight_tiles_for_effect(
         }
 
         CardEffect::SwapCard => {
+            // Highlight current tile and all adjacent + diagonal tiles (9 total)
+            tiles[current_index].is_highlighted = true; // Current tile
             for i in Tile::get_adjacent_indices(current_index, true, true) {
                 tiles[i].is_highlighted = true;
             }
