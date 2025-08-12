@@ -109,3 +109,20 @@ pub fn handle_move_player(
     // Broadcast the move to all clients
     broadcast_player_moved(user_id, new_position, is_canceled);
 }
+
+pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card) {
+    log!(
+        "[GameChannel] ConfirmCard received from {user_id}: card={:?}",
+        card
+    );
+    
+    // Clear the current turn's selected card
+    if let Some(turn) = &mut channel.current_turn {
+        if turn.player_id == user_id {
+            turn.selected_card = None;
+        }
+    }
+    
+    // Broadcast the confirmation to all clients
+    broadcast_card_confirmed(&card, user_id);
+}

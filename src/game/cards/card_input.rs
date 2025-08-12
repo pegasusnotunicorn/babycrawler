@@ -8,6 +8,7 @@ use crate::game::util::rects_intersect_outline_to_inner;
 use turbo::*;
 use crate::game::cards::card_effect::CardEffect;
 use crate::game::animation::{ highlight_selected_card_tiles, AnimatedCardOrigin, AnimatedCard };
+use crate::network::send::send_confirm_card;
 
 // #region Helper functions
 
@@ -159,16 +160,13 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
         let button_positions = geometry.get_button_positions(x, w);
         let pointer_bounds = turbo::Bounds::new(pointer_xy.0 as u32, pointer_xy.1 as u32, 1, 1);
 
-        let show_buttons = {
-            if let Some(card) = &slot.card {
-                if !card.is_dummy() {
-                    play_area_row.leftmost_card_index(false) == Some(i)
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
+        let show_buttons = if let Some(card) = &slot.card {
+            crate::game::cards::card_buttons::should_show_buttons(
+                card,
+                state.selected_card.as_ref()
+            )
+        } else {
+            false
         };
 
         if show_buttons {
@@ -188,7 +186,7 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
                             }
                         }
                     } else if label == "A" {
-                        // TODO: Implement button A
+                        confirm_card(state);
                     }
                 }
             }
@@ -240,4 +238,13 @@ pub fn update_state_with_card(state: &mut GameState, card_index: usize, card: Op
         state.play_area[card_index] = Card::dummy_card();
     }
     highlight_selected_card_tiles(state);
+}
+
+pub fn confirm_card(state: &mut GameState) {
+    if let Some(selected_card) = &state.selected_card {
+        send_confirm_card(selected_card);
+        state.selected_card = None;
+        // Clear tile highlight
+        crate::game::map::tile::clear_highlights(&mut state.tiles);
+    }
 }

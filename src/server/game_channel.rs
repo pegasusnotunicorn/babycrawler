@@ -109,6 +109,9 @@ impl os::server::channel::ChannelHandler for GameChannel {
             ClientToServer::CancelSelectCard { card_index, card } => {
                 handle_cancel_select_card(self, user_id, card_index, card);
             }
+            ClientToServer::ConfirmCard { card } => {
+                handle_confirm_card(self, user_id, card);
+            }
             ClientToServer::RotateTile { tile_index, clockwise } => {
                 handle_rotate_tile(self, user_id, tile_index, clockwise);
             }

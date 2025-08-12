@@ -1,6 +1,6 @@
 use turbo::*;
 use crate::GameState;
-use crate::game::map::tile::{ TileRotationAnim, Tile };
+use crate::game::map::tile::{ TileRotationAnim, Tile, clear_highlights };
 use crate::game::map::tile_effects::highlight_tiles_for_effect;
 use crate::network::send::{ send_card_selection, send_card_cancel };
 use crate::game::cards::card::Card;
@@ -138,7 +138,7 @@ pub fn handle_animated_card_complete(state: &mut crate::GameState) {
 // Highlight tiles for the newly selected card
 pub fn highlight_selected_card_tiles(state: &mut GameState) {
     let selected_card = state.selected_card.clone();
-    crate::game::map::tile::clear_highlights(&mut state.tiles);
+    clear_highlights(&mut state.tiles);
     if let Some(card) = &selected_card {
         if let Some(player) = state.get_local_player() {
             highlight_tiles_for_effect(&card.effect, player.position, &mut state.tiles);

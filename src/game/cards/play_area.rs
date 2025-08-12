@@ -56,16 +56,13 @@ pub fn draw_play_area(state: &GameState, frame: f64) {
             .as_ref()
             .map(|c| c.color)
             .unwrap_or(CARD_DUMMY_COLOR);
-        let show_buttons = {
-            if let Some(card) = &slot.card {
-                if !card.is_dummy() {
-                    play_area_row.leftmost_card_index(false) == Some(i)
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
+        let show_buttons = if let Some(card) = &slot.card {
+            crate::game::cards::card_buttons::should_show_buttons(
+                card,
+                state.selected_card.as_ref()
+            )
+        } else {
+            false
         };
         if let Some(card) = &slot.card {
             let mut visual_state = slot.visual_state;

@@ -79,3 +79,12 @@ pub fn draw_card_buttons(x: u32, y: u32, w: u32, h: u32, pointer_xy: (i32, i32))
     let geometry = CardButton::new(y, w, h);
     geometry.draw_buttons(x, w, pointer_xy);
 }
+
+/// Determines if a card should show buttons based on whether it's the selected card
+pub fn should_show_buttons(
+    card: &crate::game::cards::card::Card,
+    selected_card: Option<&crate::game::cards::card::Card>
+) -> bool {
+    // Only show buttons if the card is not a dummy and it's the selected card
+    !card.is_dummy() && selected_card.map_or(false, |selected| selected == card)
+}

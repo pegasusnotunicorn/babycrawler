@@ -70,6 +70,14 @@ pub fn broadcast_card_canceled(card_index: usize, card: &Card, player_id: &str) 
     });
 }
 
+pub fn broadcast_card_confirmed(card: &Card, player_id: &str) {
+    log!("[GameChannel] Broadcasting card confirmed: card={:?}, player={}", card, player_id);
+    broadcast_generic(ServerToClient::CardConfirmed {
+        card: card.clone(),
+        player_id: player_id.to_string(),
+    });
+}
+
 pub fn broadcast_tile_rotation(tile_index: usize, clockwise: bool, player_id: &str) {
     log!("[GameChannel] Broadcasting tile rotation: index={}, clockwise={}", tile_index, clockwise);
     broadcast_generic(ServerToClient::TileRotated {

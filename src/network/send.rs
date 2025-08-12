@@ -43,3 +43,11 @@ pub fn send_move(new_position: (usize, usize), is_canceled: bool) {
         let _ = conn.send(&msg);
     }
 }
+
+pub fn send_confirm_card(card: &Card) {
+    log!("🚀 [SEND] Card confirmed: {}", card.name);
+    let msg = ClientToServer::ConfirmCard { card: card.clone() };
+    if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
+        let _ = conn.send(&msg);
+    }
+}

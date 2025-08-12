@@ -175,6 +175,9 @@ impl GameState {
                     ServerToClient::CardCanceled { card_index, card, player_id } => {
                         receive_card_cancel(self, &card_index, &card, &player_id);
                     }
+                    ServerToClient::CardConfirmed { card, player_id } => {
+                        receive_card_confirmed(self, &card, &player_id);
+                    }
 
                     ServerToClient::TileRotated { tile_index, clockwise, player_id } => {
                         receive_tile_rotation(self, &tile_index, &clockwise, &player_id);

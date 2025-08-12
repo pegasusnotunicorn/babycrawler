@@ -29,6 +29,10 @@ pub enum ServerToClient {
         card: Card,
         player_id: String,
     },
+    CardConfirmed {
+        card: Card,
+        player_id: String,
+    },
     TileRotated {
         tile_index: usize,
         clockwise: bool,

@@ -14,12 +14,14 @@ pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
 
     // Handle player mapping for any number of players
     if !game_state.in_lobby.is_empty() {
+        log!("📨 [RECEIVE] Inserting player 1");
         game_state.user_id_to_player_id.insert(
             game_state.in_lobby[0].clone(),
             crate::game::map::PlayerId::Player1
         );
 
         if game_state.in_lobby.len() >= 2 {
+            log!("📨 [RECEIVE] Inserting player 2");
             game_state.user_id_to_player_id.insert(
                 game_state.in_lobby[1].clone(),
                 crate::game::map::PlayerId::Player2
@@ -213,5 +215,16 @@ pub fn receive_player_moved(
         }
     } else {
         log!("📨 [RECEIVE] Could not find PlayerId for user_id: {}", player_id);
+    }
+}
+
+pub fn receive_card_confirmed(game_state: &mut GameState, card: &Card, player_id: &str) {
+    log!("📨 [RECEIVE] Card confirmed by {}: {:?}", player_id, card);
+
+    // If it's the local player's card being confirmed, clear the selected card
+    if game_state.user == player_id {
+        game_state.selected_card = None;
+        // Clear tile highlights
+        crate::game::map::tile::clear_highlights(&mut game_state.tiles);
     }
 }
