@@ -531,10 +531,42 @@ pub fn update_fireball_animations(state: &mut GameState) {
                 Direction::Right => (x + speed, y),
             };
 
-            // Check if we hit a wall using the cleaner helper approach
-            let hit_wall = {
+            // Check if we hit a wall or player using the cleaner helper approach
+            let fireball_radius = (tile_size as f32) / 8.0; // tile_size / 4 / 2
+
+            // First check if we hit a player (excluding the shooter)
+            let player_hit = {
+                // Find the fireball to get the shooter's ID
+                let shooter_id = if
+                    let Some(fireball) = state.fireballs.iter().find(|f| f.id == anim.fireball_id)
+                {
+                    fireball.shooter_id.clone()
+                } else {
+                    continue; // Skip if fireball not found
+                };
+
+                // Get positions of all players except the shooter
+                let other_player_positions: Vec<_> = state.players
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, p)| p.id != shooter_id)
+                    .map(|(_, p)| p.position)
+                    .collect();
+
+                Tile::would_fireball_hit_player(
+                    new_pos,
+                    fireball_radius,
+                    &other_player_positions,
+                    tile_size,
+                    offset_x,
+                    offset_y
+                )
+            };
+
+            let hit_wall = if player_hit.is_some() {
+                false // Player hit takes priority over wall hit
+            } else {
                 let current_tile = &state.tiles[anim.current_tile_index];
-                let fireball_radius = (tile_size as f32) / 8.0; // tile_size / 4 / 2
 
                 // Check if we've reached the far edge of the current tile (minus fireball radius)
                 let reached_far_edge = Tile::has_fireball_reached_far_edge(
@@ -559,12 +591,24 @@ pub fn update_fireball_animations(state: &mut GameState) {
                 }
             };
 
-            if hit_wall {
-                log!(
-                    "🔥 [ANIMATION] Fireball {} hit wall at {:?}",
-                    anim.fireball_id,
-                    anim.current_pos
-                );
+            if hit_wall || player_hit.is_some() {
+                if let Some(player_index) = player_hit {
+                    log!(
+                        "🔥 [ANIMATION] Fireball {} hit player {} at {:?}",
+                        anim.fireball_id,
+                        player_index,
+                        anim.current_pos
+                    );
+                    let mut player = state.players[player_index].clone();
+                    player.take_damage(10);
+                    state.players[player_index] = player;
+                } else {
+                    log!(
+                        "🔥 [ANIMATION] Fireball {} hit wall at {:?}",
+                        anim.fireball_id,
+                        anim.current_pos
+                    );
+                }
                 completed_indices.push(i);
                 fireballs_to_deactivate.push(anim.fireball_id);
             } else {

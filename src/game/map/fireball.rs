@@ -9,13 +9,15 @@ pub struct Fireball {
     pub position: (usize, usize),
     pub direction: crate::game::map::tile::Direction,
     pub is_active: bool,
+    pub shooter_id: crate::game::map::player::PlayerId,
 }
 
 impl Fireball {
     pub fn new(
         damage: u32,
         position: (usize, usize),
-        direction: crate::game::map::tile::Direction
+        direction: crate::game::map::tile::Direction,
+        shooter_id: crate::game::map::player::PlayerId
     ) -> Self {
         Self {
             id: random::u32(),
@@ -23,6 +25,7 @@ impl Fireball {
             position,
             direction,
             is_active: true,
+            shooter_id,
         }
     }
 

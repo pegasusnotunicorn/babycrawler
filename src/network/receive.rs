@@ -212,7 +212,12 @@ pub fn receive_fireball_shot(
     let position = player.position;
 
     // Create fireball
-    let fireball = Fireball::new(10, Tile::position(*tile_index), direction.clone());
+    let fireball = Fireball::new(
+        10,
+        Tile::position(*tile_index),
+        direction.clone(),
+        player.id.clone()
+    );
     let fireball_id = fireball.id;
     game_state.fireballs.push(fireball);
 

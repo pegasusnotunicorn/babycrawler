@@ -330,7 +330,7 @@ pub fn handle_fireball_shot(
         let player_pos = player.position;
 
         // Create fireball at player position
-        let _fireball = crate::game::map::fireball::Fireball::new(10, player_pos, direction);
+        let _fireball = crate::game::map::fireball::Fireball::new(10, player_pos, direction, player.id.clone());
 
         log!("[GameChannel] Fireball created at {:?} in direction {:?}", player_pos, direction);
         broadcast_fireball_shot(user_id, target_tile, &direction);

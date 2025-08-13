@@ -141,7 +141,7 @@ impl CardEffect {
                 };
 
                 // Create fireball at player position
-                let fireball = Fireball::new(10, player_pos, direction);
+                let fireball = Fireball::new(10, player_pos, direction, local_player.id.clone());
                 let fireball_id = fireball.id;
                 state.fireballs.push(fireball);
 

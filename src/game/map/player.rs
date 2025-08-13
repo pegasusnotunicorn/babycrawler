@@ -96,7 +96,7 @@ impl Player {
             (center_x, center_y)
         };
 
-        let diameter = tile_size / 3; // Make player smaller to fit better in tile
+        let diameter = tile_size / 3;
         let radius = diameter / 2;
         let color = match self.id {
             PlayerId::Player1 => PLAYER_1_COLOR,

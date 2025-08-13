@@ -626,6 +626,44 @@ impl Tile {
             }
         }
     }
+
+    /// Check if a fireball at the given screen position would hit a player
+    /// This checks if the fireball's circular area overlaps with any player's position
+    pub fn would_fireball_hit_player(
+        fireball_pos: (f32, f32),
+        fireball_radius: f32,
+        player_positions: &[(usize, usize)],
+        tile_size: u32,
+        offset_x: u32,
+        offset_y: u32
+    ) -> Option<usize> {
+        for (player_index, &player_pos) in player_positions.iter().enumerate() {
+            // Convert player tile position to screen position (center of tile)
+            let player_screen_x =
+                (offset_x as f32) +
+                (player_pos.0 as f32) * (tile_size as f32) +
+                (tile_size as f32) / 2.0;
+            let player_screen_y =
+                (offset_y as f32) +
+                (player_pos.1 as f32) * (tile_size as f32) +
+                (tile_size as f32) / 2.0;
+
+            // Calculate distance between fireball center and player center
+            let dx = fireball_pos.0 - player_screen_x;
+            let dy = fireball_pos.1 - player_screen_y;
+            let distance = (dx * dx + dy * dy).sqrt();
+
+            // Check if fireball radius overlaps with player (assuming player takes up most of tile)
+            let player_radius = (tile_size as f32) / 3.0; // Player is roughly 2/3 of tile size
+            let collision_distance = fireball_radius + player_radius;
+
+            if distance <= collision_distance {
+                return Some(player_index);
+            }
+        }
+
+        None // No player hit
+    }
 }
 
 fn random_weighted_entrance_count_dynamic(weights: &[f32]) -> u8 {
