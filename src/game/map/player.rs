@@ -1,4 +1,4 @@
-use crate::game::constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR };
+use crate::game::constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR, PLAYER_HEALTH };
 use crate::game::map::tile::Tile;
 use crate::game::cards::card::Card;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
@@ -16,6 +16,7 @@ pub struct Player {
     pub position: (usize, usize),
     pub original_position: (usize, usize),
     pub hand: Vec<Card>,
+    pub health: u32,
 }
 
 impl Player {
@@ -27,6 +28,7 @@ impl Player {
             position: (x, y),
             original_position: (x, y),
             hand,
+            health: PLAYER_HEALTH,
         }
     }
 
@@ -49,6 +51,23 @@ impl Player {
 
     pub fn update_original_position(&mut self) {
         self.original_position = self.position;
+    }
+
+    // Health management methods
+    pub fn take_damage(&mut self, amount: u32) {
+        if amount >= self.health {
+            self.health = 0;
+        } else {
+            self.health -= amount;
+        }
+    }
+
+    pub fn heal(&mut self, amount: u32) {
+        self.health = self.health.saturating_add(amount);
+    }
+
+    pub fn is_alive(&self) -> bool {
+        self.health > 0
     }
 
     pub fn draw(
@@ -81,5 +100,44 @@ impl Player {
         let circle_y = center_y - radius;
 
         circ!(d = diameter as u32, x = circle_x, y = circle_y, color = color);
+
+        // Draw health bar below the player
+        let health_bar_width = tile_size / 3;
+        let health_bar_height = 3;
+        let health_bar_x = center_x - health_bar_width / 2;
+        let health_bar_y = center_y + radius + 4; // Position below the player circle
+
+        // Draw health bar background (dark gray)
+        rect!(
+            x = health_bar_x,
+            y = health_bar_y,
+            w = health_bar_width,
+            h = health_bar_height,
+            color = 0x444444ff,
+            border_radius = 1
+        );
+
+        // Calculate health percentage and draw filled health bar
+        let health_percentage = (self.health as f32) / (PLAYER_HEALTH as f32);
+        let filled_width = ((health_bar_width as f32) * health_percentage) as u32;
+
+        if filled_width > 0 {
+            let health_color = if health_percentage > 0.5 {
+                0x00ff00ff // Green when health > 50%
+            } else if health_percentage > 0.25 {
+                0xffff00ff // Yellow when health 25-50%
+            } else {
+                0xff0000ff // Red when health < 25%
+            };
+
+            rect!(
+                x = health_bar_x,
+                y = health_bar_y,
+                w = filled_width,
+                h = health_bar_height,
+                color = health_color,
+                border_radius = 1
+            );
+        }
     }
 }

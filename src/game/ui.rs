@@ -111,7 +111,7 @@ pub fn draw_menu() {
 }
 
 pub fn draw_turn_label(is_my_turn: bool, _game_state: &crate::GameState) {
-    let turn_label = if is_my_turn { "It's your turn!" } else { "Wait your turn..." };
+    let turn_label = if is_my_turn { "It's your turn!" } else { "Please wait for your turn..." };
     draw_text(turn_label, is_my_turn);
     if is_my_turn {
         draw_end_turn_button();

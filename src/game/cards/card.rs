@@ -49,7 +49,7 @@ impl Card {
             id: random::u32(),
             name: "TURN".into(),
             effect: CardEffect::RotateCard,
-            color: 0x3366ccff, // Blue
+            color: 0xb804b8ff, // Light purple
             hand_index: None,
         }
     }
