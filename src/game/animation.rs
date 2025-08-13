@@ -5,6 +5,7 @@ use crate::game::map::tile_effects::highlight_tiles_for_effect;
 use crate::network::send::send_card_selection;
 use crate::game::cards::card::Card;
 use crate::game::map::tile::Direction;
+use crate::network::send::send_fireball_hit;
 
 #[derive(
     Clone,
@@ -515,13 +516,16 @@ pub fn update_fireball_animations(state: &mut GameState) {
     let mut completed_indices = Vec::new();
     let mut fireballs_to_deactivate = Vec::new();
 
-    // Get board layout for wall detection
+    // Get board layout for position calculations
     let (_, _, tile_size, offset_x, offset_y) = state.get_board_layout(false);
+
+    // Get local player ID before the loop to avoid borrowing issues
+    let local_player_id = state.get_local_player().map(|p| p.id.clone());
 
     for (i, anim) in state.animated_fireballs.iter_mut().enumerate() {
         if anim.animating {
             // Move fireball by pixels per frame
-            let speed = 5.0;
+            let speed = 10.0;
             let (x, y) = anim.current_pos;
 
             let new_pos = match anim.direction {
@@ -536,7 +540,6 @@ pub fn update_fireball_animations(state: &mut GameState) {
 
             // First check if we hit a player (excluding the shooter)
             let player_hit = {
-                // Find the fireball to get the shooter's ID
                 let shooter_id = if
                     let Some(fireball) = state.fireballs.iter().find(|f| f.id == anim.fireball_id)
                 {
@@ -599,15 +602,25 @@ pub fn update_fireball_animations(state: &mut GameState) {
                         player_index,
                         anim.current_pos
                     );
-                    let mut player = state.players[player_index].clone();
-                    player.take_damage(10);
-                    state.players[player_index] = player;
-                } else {
-                    log!(
-                        "🔥 [ANIMATION] Fireball {} hit wall at {:?}",
-                        anim.fireball_id,
-                        anim.current_pos
-                    );
+
+                    // Only send the hit to the server if I'm the one who shot this fireball
+                    if
+                        let Some(fireball) = state.fireballs
+                            .iter()
+                            .find(|f| f.id == anim.fireball_id)
+                    {
+                        // Check if the local player is the shooter
+                        if let Some(ref local_id) = local_player_id {
+                            if fireball.shooter_id == *local_id {
+                                // Send FireballHit message to server
+                                send_fireball_hit(
+                                    state.user.clone(),
+                                    anim.current_tile_index,
+                                    fireball.direction
+                                );
+                            }
+                        }
+                    }
                 }
                 completed_indices.push(i);
                 fireballs_to_deactivate.push(anim.fireball_id);

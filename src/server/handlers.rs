@@ -9,10 +9,12 @@ use crate::server::broadcast::{
     broadcast_player_moved,
     broadcast_tiles_swapped,
     broadcast_fireball_shot,
+    broadcast_fireball_hit_result,
 };
 use crate::game::cards::card::Card;
-use crate::game::constants::HAND_SIZE;
+use crate::game::constants::{ HAND_SIZE, FIREBALL_DAMAGE };
 use crate::game::map::player::Player;
+use crate::game::map::player::PlayerId;
 
 /// Helper function to get the player index for a given user_id
 fn get_player_index(channel: &GameChannel, user_id: &str) -> Option<usize> {
@@ -198,11 +200,6 @@ pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card)
                 tile.original_location = current_index;
             }
         }
-        CardEffect::FireCard => {
-            // TODO: Implement fire card confirm logic
-            // For now, no special handling needed
-            log!("[GameChannel] FireCard confirmed - no special handling needed");
-        }
         _ => {
             // Do nothing for other card types
         }
@@ -325,14 +322,95 @@ pub fn handle_fireball_shot(
         return;
     }
 
-    // Get player position
-    if let Some(player) = get_player_mut(channel, user_id) {
-        let player_pos = player.position;
+    let player = get_player_mut(channel, user_id).unwrap();
+    let player_pos = player.position;
 
-        // Create fireball at player position
-        let _fireball = crate::game::map::fireball::Fireball::new(10, player_pos, direction, player.id.clone());
+    log!("[GameChannel] Fireball created at {:?} in direction {:?}", player_pos, direction);
+    // handle_confirm_card(channel, user_id, Card::fire_card());
+    broadcast_fireball_shot(user_id, target_tile, &direction);
+}
 
-        log!("[GameChannel] Fireball created at {:?} in direction {:?}", player_pos, direction);
-        broadcast_fireball_shot(user_id, target_tile, &direction);
+pub fn handle_fireball_hit(
+    channel: &mut GameChannel,
+    shooter_id: &str,
+    from_tile_index: usize,
+    direction: crate::game::map::tile::Direction
+) {
+    log!(
+        "[GameChannel] FireballHit received from {shooter_id}: from_tile_index={}, direction={:?}",
+        from_tile_index,
+        direction
+    );
+
+    // Convert tile index to position coordinates
+    let from_position = (from_tile_index % 5, from_tile_index / 5);
+
+    // Calculate where the fireball would hit based on direction and starting position
+    let hit_position = calculate_fireball_hit_position(from_position, direction);
+
+    // Check if we hit a player
+    let mut target_player_id = None;
+    let mut damage_dealt = 0;
+    let mut player_index_to_damage = None;
+
+    // First pass: find the target player
+    for (player_index, player) in channel.board_players.iter().enumerate() {
+        if player.position == hit_position {
+            // Convert PlayerId enum to actual user ID
+            let actual_user_id = match player.id {
+                PlayerId::Player1 => channel.players.get(0).cloned(),
+                PlayerId::Player2 => channel.players.get(1).cloned(),
+            };
+
+            if let Some(user_id) = actual_user_id {
+                if user_id != shooter_id {
+                    target_player_id = Some(user_id);
+                    damage_dealt = FIREBALL_DAMAGE;
+                    player_index_to_damage = Some(player_index);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Second pass: apply damage if we found a player
+    if let Some(player_index) = player_index_to_damage {
+        if let Some(player_mut) = channel.board_players.get_mut(player_index) {
+            player_mut.take_damage(damage_dealt);
+            log!(
+                "[GameChannel] Player {} took {} damage from fireball",
+                player_mut.id,
+                damage_dealt
+            );
+        }
+    }
+
+    if let Some(target_player_id) = target_player_id {
+        broadcast_fireball_hit_result(shooter_id, &target_player_id, &damage_dealt);
+    }
+}
+
+/// Calculate where a fireball would hit based on starting position and direction
+fn calculate_fireball_hit_position(
+    from_position: (usize, usize),
+    direction: crate::game::map::tile::Direction
+) -> (usize, usize) {
+    match direction {
+        crate::game::map::tile::Direction::Up => {
+            let new_y = from_position.1.saturating_sub(1);
+            (from_position.0, new_y)
+        }
+        crate::game::map::tile::Direction::Down => {
+            let new_y = (from_position.1 + 1).min(4);
+            (from_position.0, new_y)
+        }
+        crate::game::map::tile::Direction::Left => {
+            let new_x = from_position.0.saturating_sub(1);
+            (new_x, from_position.1)
+        }
+        crate::game::map::tile::Direction::Right => {
+            let new_x = (from_position.0 + 1).min(4);
+            (new_x, from_position.1)
+        }
     }
 }

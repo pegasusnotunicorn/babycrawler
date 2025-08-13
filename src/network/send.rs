@@ -67,3 +67,20 @@ pub fn send_fireball_shot(target_tile: usize, direction: crate::game::map::tile:
         let _ = conn.send(&msg);
     }
 }
+
+pub fn send_fireball_hit(
+    shooter_id: String,
+    from_tile_index: usize,
+    direction: crate::game::map::tile::Direction
+) {
+    log!(
+        "🚀 [SEND] Fireball hit: shooter={}, from_position={:?}, direction={:?}",
+        shooter_id,
+        from_tile_index,
+        direction
+    );
+    let msg = ClientToServer::FireballHit { shooter_id, from_tile_index, direction };
+    if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
+        let _ = conn.send(&msg);
+    }
+}

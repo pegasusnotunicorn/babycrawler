@@ -97,18 +97,32 @@ pub fn broadcast_tiles_swapped(tile_index_1: usize, tile_index_2: usize) {
 
 pub fn broadcast_fireball_shot(
     player_id: &str,
-    tile_index: usize,
+    target_tile: usize,
     direction: &crate::game::map::tile::Direction
 ) {
     log!(
-        "[GameChannel] Broadcasting fireball shot: player={}, index={}, direction={:?}",
+        "[GameChannel] Broadcasting fireball shot: player={}, target_tile={}, direction={:?}",
         player_id,
-        tile_index,
+        target_tile,
         direction
     );
     broadcast_generic(ServerToClient::FireballShot {
         player_id: player_id.to_string(),
-        tile_index,
+        tile_index: target_tile,
         direction: direction.clone(),
+    });
+}
+
+pub fn broadcast_fireball_hit_result(shooter_id: &str, target_player_id: &str, damage_dealt: &u32) {
+    log!(
+        "[GameChannel] Broadcasting fireball hit result: player={}, target={:?}, damage={}",
+        shooter_id,
+        target_player_id,
+        damage_dealt
+    );
+    broadcast_generic(ServerToClient::FireballHit {
+        player_id: shooter_id.to_string(),
+        target_id: target_player_id.to_string(),
+        damage_dealt: *damage_dealt,
     });
 }

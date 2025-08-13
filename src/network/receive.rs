@@ -223,3 +223,24 @@ pub fn receive_fireball_shot(
 
     start_fireball_animation(game_state, fireball_id, position, direction.clone(), *tile_index);
 }
+
+pub fn receive_fireball_hit_result(
+    game_state: &mut GameState,
+    player_id: &str,
+    target_id: &str,
+    damage_dealt: &u32
+) {
+    log!(
+        "📨 [RECEIVE] Fireball hit result: player={}, target={:?}, damage={}",
+        player_id,
+        target_id,
+        damage_dealt
+    );
+
+    if let Some(player) = game_state.get_player_by_user_id(target_id) {
+        log!("📨 [RECEIVE] Player {} took {} damage from fireball", target_id, damage_dealt);
+        player.take_damage(*damage_dealt);
+    }
+
+    game_state.fireballs.clear();
+}

@@ -47,4 +47,9 @@ pub enum ServerToClient {
         tile_index: usize,
         direction: crate::game::map::tile::Direction,
     },
+    FireballHit {
+        player_id: String,
+        target_id: String,
+        damage_dealt: u32,
+    },
 }

@@ -8,6 +8,7 @@ use crate::game::animation::{
 use crate::GameState;
 use crate::network::send::{ send_tile_rotation, send_move, send_swap_tiles, send_fireball_shot };
 use crate::game::map::fireball::Fireball;
+use crate::game::map::tile::clear_highlights;
 use turbo::*;
 use serde::{ Serialize, Deserialize };
 use turbo::borsh::{ BorshDeserialize, BorshSerialize };
@@ -145,11 +146,12 @@ impl CardEffect {
                 let fireball_id = fireball.id;
                 state.fireballs.push(fireball);
 
-                // Start local animation immediately
                 start_fireball_animation(state, fireball_id, player_pos, direction, tile_index);
-
-                // Send to server for validation
                 send_fireball_shot(tile_index, direction);
+
+                // // Clear highlights and selected card
+                // state.selected_card = None;
+                // clear_highlights(&mut state.tiles);
             }
         }
     }

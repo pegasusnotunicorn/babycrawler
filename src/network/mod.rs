@@ -32,6 +32,11 @@ pub enum ClientToServer {
         target_tile: usize,
         direction: crate::game::map::tile::Direction,
     },
+    FireballHit {
+        shooter_id: String,
+        from_tile_index: usize,
+        direction: crate::game::map::tile::Direction,
+    },
 }
 
 #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
@@ -76,5 +81,11 @@ pub enum ServerToClient {
         fireball_id: u32,
         target_position: (usize, usize),
         damage_dealt: u32,
+    },
+    FireballHitResult {
+        shooter_id: String,
+        target_player_id: Option<String>,
+        damage_dealt: u32,
+        hit_position: (usize, usize),
     },
 }

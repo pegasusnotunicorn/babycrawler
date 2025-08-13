@@ -30,6 +30,7 @@ use crate::network::receive::{
     receive_player_moved,
     receive_tiles_swapped,
     receive_fireball_shot,
+    receive_fireball_hit_result,
 };
 
 use turbo::{ os, gamepad, bounds, * };
@@ -221,6 +222,9 @@ impl GameState {
 
                     ServerToClient::FireballShot { player_id, tile_index, direction } => {
                         receive_fireball_shot(self, &player_id, &tile_index, &direction);
+                    }
+                    ServerToClient::FireballHit { player_id, target_id, damage_dealt } => {
+                        receive_fireball_hit_result(self, &player_id, &target_id, &damage_dealt);
                     }
                 }
             }

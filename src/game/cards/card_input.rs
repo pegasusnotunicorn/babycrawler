@@ -194,10 +194,7 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
                                 handle_card_cancel(state, idx, &selected);
                             }
                         }
-                        // } else if label == "A" && !slot.card.as_ref().unwrap().hide_confirm_button {
-                        //     confirm_card(state);
-                        // }
-                    } else if label == "A" {
+                    } else if label == "A" && !slot.card.as_ref().unwrap().hide_confirm_button {
                         confirm_card(state);
                     }
                 }
@@ -216,11 +213,6 @@ pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected:
 
     if let CardEffect::SwapCard = selected.effect {
         CardEffect::revert_tile_positions(state);
-    }
-
-    if let CardEffect::FireCard = selected.effect {
-        // TODO: Implement fire card cancel logic
-        // For now, no special handling needed
     }
 
     let play_area_row = get_play_area_row(state);
