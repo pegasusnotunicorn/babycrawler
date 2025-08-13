@@ -10,6 +10,7 @@ use crate::game::cards::card_effect::CardEffect;
 use crate::game::animation::{ highlight_selected_card_tiles, AnimatedCardOrigin, AnimatedCard };
 use crate::network::send::{ send_card_cancel, send_confirm_card };
 use crate::game::map::clear_highlights;
+use crate::game::cards::card_buttons::should_show_buttons;
 
 // #region Helper functions
 
@@ -172,10 +173,7 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
         let pointer_bounds = turbo::Bounds::new(pointer_xy.0 as u32, pointer_xy.1 as u32, 1, 1);
 
         let show_buttons = if let Some(card) = &slot.card {
-            crate::game::cards::card_buttons::should_show_buttons(
-                card,
-                state.selected_card.as_ref()
-            )
+            should_show_buttons(card, state.selected_card.as_ref())
         } else {
             false
         };
@@ -196,6 +194,9 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
                                 handle_card_cancel(state, idx, &selected);
                             }
                         }
+                        // } else if label == "A" && !slot.card.as_ref().unwrap().hide_confirm_button {
+                        //     confirm_card(state);
+                        // }
                     } else if label == "A" {
                         confirm_card(state);
                     }

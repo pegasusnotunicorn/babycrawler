@@ -34,14 +34,24 @@ impl CardButton {
         ]
     }
 
-    pub fn draw_buttons(&self, card_x: u32, card_w: u32, pointer_xy: (i32, i32)) {
+    pub fn draw_buttons(
+        &self,
+        card_x: u32,
+        card_w: u32,
+        pointer_xy: (i32, i32),
+        hide_confirm_button: bool
+    ) {
         let button_positions = self.get_button_positions(card_x, card_w);
         let pointer_bounds = turbo::Bounds::new(pointer_xy.0 as u32, pointer_xy.1 as u32, 1, 1);
 
-        let button_specs = [
-            ("B", CARD_BUTTON_B_COLOR, button_positions[0]),
-            ("A", CARD_BUTTON_A_COLOR, button_positions[1]),
-        ];
+        let button_specs = if hide_confirm_button {
+            vec![("B", CARD_BUTTON_B_COLOR, button_positions[0])]
+        } else {
+            vec![
+                ("B", CARD_BUTTON_B_COLOR, button_positions[0]),
+                ("A", CARD_BUTTON_A_COLOR, button_positions[1])
+            ]
+        };
 
         for (label, color, (bx, by)) in button_specs {
             let bounds = turbo::Bounds::new(bx, by, self.button_w, self.button_h);
@@ -75,9 +85,16 @@ impl CardButton {
 }
 
 // Convenience function for backward compatibility
-pub fn draw_card_buttons(x: u32, y: u32, w: u32, h: u32, pointer_xy: (i32, i32)) {
+pub fn draw_card_buttons(
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    pointer_xy: (i32, i32),
+    hide_confirm_button: bool
+) {
     let geometry = CardButton::new(y, w, h);
-    geometry.draw_buttons(x, w, pointer_xy);
+    geometry.draw_buttons(x, w, pointer_xy, hide_confirm_button);
 }
 
 /// Determines if a card should show buttons based on whether it's the selected card

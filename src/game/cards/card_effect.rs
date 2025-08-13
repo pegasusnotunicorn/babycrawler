@@ -1,9 +1,13 @@
 use crate::game::constants::MAP_SIZE;
 use crate::game::map::Tile;
-use crate::game::animation::{ start_tile_rotation_animation, start_player_movement_animation };
+use crate::game::animation::{
+    start_tile_rotation_animation,
+    start_player_movement_animation,
+    start_fireball_animation,
+};
 use crate::GameState;
-use crate::network::send::{ send_tile_rotation, send_move, send_swap_tiles };
-
+use crate::network::send::{ send_tile_rotation, send_move, send_swap_tiles, send_fireball_shot };
+use crate::game::map::fireball::Fireball;
 use turbo::*;
 use serde::{ Serialize, Deserialize };
 use turbo::borsh::{ BorshDeserialize, BorshSerialize };
@@ -117,9 +121,37 @@ impl CardEffect {
         }
     }
 
-    fn apply_fire_card(&self, _state: &mut GameState, _tile_index: usize) {
-        // TODO: Implement fire card effect
-        // For now, it does nothing
+    fn apply_fire_card(&self, state: &mut GameState, tile_index: usize) {
+        // Get player position
+        if let Some(local_player) = state.get_local_player() {
+            let player_pos = local_player.position;
+            let tile = &state.tiles[tile_index];
+            let (target_x, target_y) = Tile::position(tile_index);
+
+            if tile.is_highlighted {
+                // Calculate direction from player to target tile
+                let direction = if target_x > player_pos.0 {
+                    crate::game::map::tile::Direction::Right
+                } else if target_x < player_pos.0 {
+                    crate::game::map::tile::Direction::Left
+                } else if target_y > player_pos.1 {
+                    crate::game::map::tile::Direction::Down
+                } else {
+                    crate::game::map::tile::Direction::Up
+                };
+
+                // Create fireball at player position
+                let fireball = Fireball::new(10, player_pos, direction);
+                let fireball_id = fireball.id;
+                state.fireballs.push(fireball);
+
+                // Start local animation immediately
+                start_fireball_animation(state, fireball_id, player_pos, direction, tile_index);
+
+                // Send to server for validation
+                send_fireball_shot(tile_index, direction);
+            }
+        }
     }
 
     // Add a function to revert all tiles to their original_rotation

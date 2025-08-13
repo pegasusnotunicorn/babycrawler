@@ -295,6 +295,29 @@ impl Tile {
         None // No path found
     }
 
+    /// Check if this tile is connected to an adjacent tile in the given direction
+    /// Returns true if both tiles have entrances that connect to each other
+    pub fn is_connected_in_direction(&self, direction: Direction, adjacent_tile: &Tile) -> bool {
+        match direction {
+            Direction::Up => {
+                self.entrances.contains(&Direction::Up) &&
+                    adjacent_tile.entrances.contains(&Direction::Down)
+            }
+            Direction::Down => {
+                self.entrances.contains(&Direction::Down) &&
+                    adjacent_tile.entrances.contains(&Direction::Up)
+            }
+            Direction::Left => {
+                self.entrances.contains(&Direction::Left) &&
+                    adjacent_tile.entrances.contains(&Direction::Right)
+            }
+            Direction::Right => {
+                self.entrances.contains(&Direction::Right) &&
+                    adjacent_tile.entrances.contains(&Direction::Left)
+            }
+        }
+    }
+
     /// Finds all tiles in a straight line that have connected entrances
     /// Returns a vector of tile indices that form a connected path
     pub fn find_connected_line(
@@ -310,10 +333,10 @@ impl Tile {
         for _ in 0..max_dist {
             let next_index = match direction {
                 Direction::Up => {
-                    if current_index >= MAP_SIZE {
+                    if current_index < MAP_SIZE {
                         break;
                     }
-                    current_index.saturating_sub(MAP_SIZE)
+                    current_index - MAP_SIZE
                 }
                 Direction::Down => {
                     let new_index = current_index + MAP_SIZE;
@@ -527,6 +550,80 @@ impl Tile {
                 color = x_color,
                 rotation = -45
             );
+        }
+    }
+
+    /// Check if a fireball would hit a wall when moving in the given direction
+    /// from the current tile, considering the fireball's radius
+    pub fn would_fireball_hit_wall(
+        &self,
+        current_index: usize,
+        direction: Direction,
+        tiles: &[Tile]
+    ) -> bool {
+        let (tile_x, tile_y) = Tile::position(current_index);
+
+        // Check if we're at the map edge
+        let at_edge = match direction {
+            Direction::Up => tile_y == 0,
+            Direction::Down => tile_y == 4,
+            Direction::Left => tile_x == 0,
+            Direction::Right => tile_x == 4,
+        };
+
+        if at_edge {
+            return true; // Hit map boundary
+        }
+
+        // Calculate next tile index
+        let next_tile_index = match direction {
+            Direction::Up => current_index - 5,
+            Direction::Down => current_index + 5,
+            Direction::Left => current_index - 1,
+            Direction::Right => current_index + 1,
+        };
+
+        // Check if next tile exists and is connected
+        if next_tile_index >= tiles.len() {
+            return true; // Out of bounds
+        }
+
+        let next_tile = &tiles[next_tile_index];
+        !self.is_connected_in_direction(direction, next_tile)
+    }
+
+    /// Check if a fireball has reached the far edge of a tile when moving in a given direction
+    /// This is used to determine when to check for wall collisions
+    pub fn has_fireball_reached_far_edge(
+        current_index: usize,
+        direction: Direction,
+        new_pos: (f32, f32),
+        fireball_radius: f32,
+        tile_size: u32,
+        offset_x: u32,
+        offset_y: u32
+    ) -> bool {
+        let (tile_x, tile_y) = Tile::position(current_index);
+
+        match direction {
+            Direction::Up => {
+                let tile_top_edge = (offset_y as f32) + (tile_y as f32) * (tile_size as f32);
+                new_pos.1 <= tile_top_edge + fireball_radius
+            }
+            Direction::Down => {
+                let tile_bottom_edge =
+                    (offset_y as f32) + ((tile_y + 1) as f32) * (tile_size as f32);
+                new_pos.1 >= tile_bottom_edge - fireball_radius
+            }
+            Direction::Left => {
+                let tile_left_edge = (offset_x as f32) + (tile_x as f32) * (tile_size as f32);
+                new_pos.0 <= tile_left_edge + fireball_radius
+            }
+            Direction::Right => {
+                let tile_right_edge =
+                    (offset_x as f32) + ((tile_x + 1) as f32) * (tile_size as f32);
+                new_pos.0 >= tile_right_edge - fireball_radius
+            }
         }
     }
 }

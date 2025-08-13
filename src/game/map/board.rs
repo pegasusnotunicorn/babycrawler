@@ -98,4 +98,21 @@ pub fn draw_board(state: &GameState, frame: f64, tile_size: u32, offset_x: u32, 
 
         player.draw(tile_size, offset_x, offset_y, animated_pos);
     }
+
+    // Phase 4: Draw fireballs on top of everything
+    for fireball in &state.fireballs {
+        if fireball.is_active {
+            // Check if this fireball is being animated
+            let animated_pos = if
+                let Some(anim) = state.animated_fireballs
+                    .iter()
+                    .find(|a| a.fireball_id == fireball.id)
+            {
+                Some((anim.current_pos.0, anim.current_pos.1))
+            } else {
+                None
+            };
+            fireball.draw(tile_size, offset_x, offset_y, animated_pos);
+        }
+    }
 }

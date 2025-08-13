@@ -28,6 +28,10 @@ pub enum ClientToServer {
         tile_index_1: usize,
         tile_index_2: usize,
     },
+    FireballShot {
+        target_tile: usize,
+        direction: crate::game::map::tile::Direction,
+    },
 }
 
 #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
@@ -63,5 +67,14 @@ pub enum ServerToClient {
     TilesSwapped {
         tile_index_1: usize,
         tile_index_2: usize,
+    },
+    FireballSpawned {
+        fireball: crate::game::map::fireball::Fireball,
+        player_id: String,
+    },
+    FireballHit {
+        fireball_id: u32,
+        target_position: (usize, usize),
+        damage_dealt: u32,
     },
 }

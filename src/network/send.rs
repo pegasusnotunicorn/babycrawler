@@ -59,3 +59,11 @@ pub fn send_swap_tiles(tile_index_1: usize, tile_index_2: usize) {
         let _ = conn.send(&msg);
     }
 }
+
+pub fn send_fireball_shot(target_tile: usize, direction: crate::game::map::tile::Direction) {
+    log!("🚀 [SEND] Fireball shot at tile {} in direction {:?}", target_tile, direction);
+    let msg = ClientToServer::FireballShot { target_tile, direction };
+    if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
+        let _ = conn.send(&msg);
+    }
+}

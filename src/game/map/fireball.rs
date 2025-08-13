@@ -1,5 +1,6 @@
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
+use crate::game::map::tile::Direction;
 
 #[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Fireball {
@@ -72,5 +73,23 @@ impl Fireball {
         let circle_y = center_y - radius;
 
         circ!(d = diameter as u32, x = circle_x, y = circle_y, color = fireball_color);
+
+        // Add a thin rect trailing the fireball to show direction of travel
+        let (wave_x, wave_y, wave_width, wave_height) = match self.direction {
+            Direction::Up => (center_x.saturating_sub(2), center_y + radius, 4, radius), // Vertical rect below
+            Direction::Down =>
+                (center_x.saturating_sub(2), center_y.saturating_sub(radius * 2), 4, radius), // Vertical rect above
+            Direction::Left => (center_x + radius, center_y.saturating_sub(2), radius, 4), // Horizontal rect to right
+            Direction::Right =>
+                (center_x.saturating_sub(radius * 2), center_y.saturating_sub(2), radius, 4), // Horizontal rect to left
+        };
+
+        rect!(
+            x = wave_x,
+            y = wave_y,
+            width = wave_width,
+            height = wave_height,
+            color = fireball_color
+        );
     }
 }

@@ -5,7 +5,7 @@ use crate::game::constants::{ GAME_PADDING, CARD_DUMMY_COLOR };
 use crate::game::util::rects_intersect_outline_to_inner;
 use turbo::mouse;
 use crate::game::cards::card::{ Card, CardVisualState };
-use crate::game::cards::card_buttons::draw_card_buttons;
+use crate::game::cards::card_buttons::{ draw_card_buttons, should_show_buttons };
 
 pub fn fill_with_dummies(vec: &mut Vec<Card>, size: usize) {
     while vec.len() < size {
@@ -57,10 +57,7 @@ pub fn draw_play_area(state: &GameState, frame: f64) {
             .map(|c| c.color)
             .unwrap_or(CARD_DUMMY_COLOR);
         let show_buttons = if let Some(card) = &slot.card {
-            crate::game::cards::card_buttons::should_show_buttons(
-                card,
-                state.selected_card.as_ref()
-            )
+            should_show_buttons(card, state.selected_card.as_ref())
         } else {
             false
         };
@@ -74,7 +71,7 @@ pub fn draw_play_area(state: &GameState, frame: f64) {
                 let h = play_area_row.card_height;
                 visual_state |= CardVisualState::SELECTED;
                 card.draw(x, y, w, h, outline_color, true, visual_state, Some(frame));
-                draw_card_buttons(x, y, w, h, pointer_xy);
+                draw_card_buttons(x, y, w, h, pointer_xy, card.hide_confirm_button);
             } else {
                 card.draw(
                     x,

@@ -56,6 +56,7 @@ impl CardRow {
                     effect: CardEffect::Dummy,
                     color: outline_color,
                     hand_index: None,
+                    hide_confirm_button: false,
                 };
                 dummy.draw(
                     x,

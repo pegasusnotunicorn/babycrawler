@@ -21,18 +21,17 @@ pub enum ServerToClient {
     },
 
     CardCancelled {
-        card_index: usize,
-        card: Card,
         player_id: String,
+        card: Card,
     },
     CardConfirmed {
-        card: Card,
         player_id: String,
+        card: Card,
     },
     TileRotated {
+        player_id: String,
         tile_index: usize,
         tile: Tile,
-        player_id: String,
     },
     PlayerMoved {
         player_id: String,
@@ -42,5 +41,10 @@ pub enum ServerToClient {
     TilesSwapped {
         tile_index_1: usize,
         tile_index_2: usize,
+    },
+    FireballShot {
+        player_id: String,
+        tile_index: usize,
+        direction: crate::game::map::tile::Direction,
     },
 }

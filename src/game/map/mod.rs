@@ -8,4 +8,3 @@ pub mod fireball;
 pub use board::*;
 pub use tile::*;
 pub use player::*;
-pub use fireball::*;

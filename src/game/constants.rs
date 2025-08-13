@@ -7,10 +7,14 @@ pub const HAND_SIZE: usize = 3;
 pub const FONT_HEIGHT: u32 = 12;
 
 // Entrance count weights for tile random generation
-pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
-pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
-pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
-pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
+pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 0.0;
+pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 0.0;
+pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 4.0;
+pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.0;
+// pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
+// pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
+// pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
+// pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
 
 // colors
 pub const GAME_BG_COLOR: u32 = 0x222222ff; // Dark gray

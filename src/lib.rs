@@ -10,7 +10,13 @@ use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
 use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu };
-use crate::game::animation::{ update_animations, AnimatedCard, AnimatedPlayer, AnimatedTile };
+use crate::game::animation::{
+    update_animations,
+    AnimatedCard,
+    AnimatedPlayer,
+    AnimatedTile,
+    AnimatedFireball,
+};
 use crate::game::debug::draw_debug;
 use crate::game::cards::{ draw_play_area, draw_hand };
 use crate::game::cards::card::Card;
@@ -23,6 +29,7 @@ use crate::network::receive::{
     receive_tile_rotation,
     receive_player_moved,
     receive_tiles_swapped,
+    receive_fireball_shot,
 };
 
 use turbo::{ os, gamepad, bounds, * };
@@ -58,6 +65,8 @@ pub struct GameState {
     pub current_turn: Option<CurrentTurn>,
     pub swap_tiles_selected: Vec<usize>, // Track tiles selected for swapping
     pub pending_swaps: Vec<(usize, usize)>, // Track tiles that will be swapped when animation completes
+    pub fireballs: Vec<crate::game::map::fireball::Fireball>,
+    pub animated_fireballs: Vec<AnimatedFireball>,
 }
 
 impl GameState {
@@ -85,6 +94,8 @@ impl GameState {
             current_turn: None,
             swap_tiles_selected: Vec::new(),
             pending_swaps: Vec::new(),
+            fireballs: Vec::new(),
+            animated_fireballs: Vec::new(),
         }
     }
 
@@ -145,6 +156,8 @@ impl GameState {
         self.animated_tiles.clear();
         self.pending_swaps.clear();
         self.play_area.clear();
+        self.fireballs.clear();
+        self.animated_fireballs.clear();
         fill_with_dummies(&mut self.play_area, HAND_SIZE);
     }
 
@@ -186,8 +199,8 @@ impl GameState {
                         receive_board_state(self, tiles, players, current_turn);
                     }
 
-                    ServerToClient::CardCancelled { card_index, card, player_id } => {
-                        receive_card_cancelled(self, &card_index, &card, &player_id);
+                    ServerToClient::CardCancelled { card, player_id } => {
+                        receive_card_cancelled(self, &card, &player_id);
                     }
 
                     ServerToClient::CardConfirmed { card, player_id } => {
@@ -204,6 +217,10 @@ impl GameState {
 
                     ServerToClient::TilesSwapped { tile_index_1, tile_index_2 } => {
                         receive_tiles_swapped(self, &tile_index_1, &tile_index_2);
+                    }
+
+                    ServerToClient::FireballShot { player_id, tile_index, direction } => {
+                        receive_fireball_shot(self, &player_id, &tile_index, &direction);
                     }
                 }
             }

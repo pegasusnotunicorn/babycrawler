@@ -5,11 +5,14 @@ use crate::game::animation::{
     start_tile_rotation_animation,
     start_player_movement_animation,
     start_direct_player_movement_animation,
+    start_fireball_animation,
     animate_tile_to_index,
 };
 
 use crate::GameState;
 use crate::game::map::clear_highlights;
+use crate::game::map::fireball::Fireball;
+use crate::game::map::tile::Tile;
 
 pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
     log!("📨 [RECEIVE] Connected users: {:?}", users);
@@ -65,12 +68,7 @@ pub fn receive_board_state(
     game_state.current_turn = current_turn.clone();
 }
 
-pub fn receive_card_cancelled(
-    game_state: &mut GameState,
-    card_index: &usize,
-    card: &Card,
-    player_id: &str
-) {
+pub fn receive_card_cancelled(game_state: &mut GameState, card: &Card, player_id: &str) {
     log!(
         "📨 [RECEIVE] Card cancelled by {}: {:?}, hand_index: {:?}",
         player_id,
@@ -80,15 +78,14 @@ pub fn receive_card_cancelled(
 
     if game_state.user == player_id {
         game_state.selected_card = None;
-        game_state.play_area[*card_index] = Card::dummy_card();
-        crate::game::map::tile::clear_highlights(&mut game_state.tiles);
+        clear_highlights(&mut game_state.tiles);
     }
 }
 
 pub fn receive_tile_rotation(
     game_state: &mut GameState,
     tile_index: &usize,
-    tile: &crate::game::map::tile::Tile,
+    tile: &Tile,
     player_id: &str
 ) {
     log!(
@@ -196,4 +193,28 @@ pub fn receive_tiles_swapped(
     // Start animations for both tiles
     animate_tile_to_index(game_state, *tile_index_1, *tile_index_2);
     animate_tile_to_index(game_state, *tile_index_2, *tile_index_1);
+}
+
+pub fn receive_fireball_shot(
+    game_state: &mut GameState,
+    player_id: &str,
+    tile_index: &usize,
+    direction: &crate::game::map::tile::Direction
+) {
+    log!("📨 [RECEIVE] Fireball shot: index={}, direction={:?}", tile_index, direction);
+
+    let is_local_player = game_state.user == player_id;
+    if is_local_player {
+        return;
+    }
+
+    let player = game_state.get_player_by_user_id(player_id).unwrap();
+    let position = player.position;
+
+    // Create fireball
+    let fireball = Fireball::new(10, Tile::position(*tile_index), direction.clone());
+    let fireball_id = fireball.id;
+    game_state.fireballs.push(fireball);
+
+    start_fireball_animation(game_state, fireball_id, position, direction.clone(), *tile_index);
 }

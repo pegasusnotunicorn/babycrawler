@@ -4,6 +4,7 @@ use crate::game::map::tile::{ TileRotationAnim, Tile, clear_highlights };
 use crate::game::map::tile_effects::highlight_tiles_for_effect;
 use crate::network::send::send_card_selection;
 use crate::game::cards::card::Card;
+use crate::game::map::tile::Direction;
 
 #[derive(
     Clone,
@@ -78,6 +79,22 @@ pub struct AnimatedTile {
     pub animating: bool,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    borsh::BorshDeserialize,
+    borsh::BorshSerialize,
+    serde::Serialize,
+    serde::Deserialize
+)]
+pub struct AnimatedFireball {
+    pub fireball_id: u32,
+    pub current_pos: (f32, f32), // current screen position in pixels
+    pub direction: Direction,
+    pub animating: bool,
+    pub current_tile_index: usize, // which tile we're currently in
+}
+
 pub fn update_animations(state: &mut GameState) {
     if update_animated_card_spring(state) {
         handle_animated_card_complete(state);
@@ -85,6 +102,7 @@ pub fn update_animations(state: &mut GameState) {
     update_tile_rotation_animations(state, 1.0 / 60.0);
     update_player_movement_animations(state);
     update_tile_animations(state);
+    update_fireball_animations(state);
 }
 
 /// Generic spring-to-target function for 2D positions.
@@ -451,5 +469,141 @@ pub fn update_tile_animations(state: &mut GameState) {
     // Remove completed swaps (in reverse order to maintain indices)
     for &index in completed_swaps.iter().rev() {
         state.pending_swaps.remove(index);
+    }
+}
+
+/// Start fireball animation from player position
+pub fn start_fireball_animation(
+    state: &mut GameState,
+    fireball_id: u32,
+    start_pos: (usize, usize),
+    direction: Direction,
+    _target_tile: usize
+) {
+    log!(
+        "🔥 [ANIMATION] Starting fireball animation: id={}, start={:?}, direction={:?}",
+        fireball_id,
+        start_pos,
+        direction
+    );
+
+    // Get board layout for initial position calculation
+    let (_, _, tile_size, offset_x, offset_y) = state.get_board_layout(false);
+
+    // Calculate starting screen position (center of starting tile)
+    let start_tile_index = Tile::index(start_pos.0, start_pos.1);
+    let (start_x, start_y) = Tile::screen_position(start_tile_index, tile_size, offset_x, offset_y);
+    let start_screen_pos = (
+        (start_x as f32) + (tile_size as f32) / 2.0,
+        (start_y as f32) + (tile_size as f32) / 2.0,
+    );
+
+    // Create animated fireball
+    let animated_fireball = AnimatedFireball {
+        fireball_id,
+        current_pos: start_screen_pos,
+        direction,
+        animating: true,
+        current_tile_index: start_tile_index,
+    };
+
+    state.animated_fireballs.push(animated_fireball);
+}
+
+/// Update all fireball animations
+pub fn update_fireball_animations(state: &mut GameState) {
+    let mut completed_indices = Vec::new();
+    let mut fireballs_to_deactivate = Vec::new();
+
+    // Get board layout for wall detection
+    let (_, _, tile_size, offset_x, offset_y) = state.get_board_layout(false);
+
+    for (i, anim) in state.animated_fireballs.iter_mut().enumerate() {
+        if anim.animating {
+            // Move fireball by pixels per frame
+            let speed = 5.0;
+            let (x, y) = anim.current_pos;
+
+            let new_pos = match anim.direction {
+                Direction::Up => (x, y - speed),
+                Direction::Down => (x, y + speed),
+                Direction::Left => (x - speed, y),
+                Direction::Right => (x + speed, y),
+            };
+
+            // Check if we hit a wall using the cleaner helper approach
+            let hit_wall = {
+                let current_tile = &state.tiles[anim.current_tile_index];
+                let fireball_radius = (tile_size as f32) / 8.0; // tile_size / 4 / 2
+
+                // Check if we've reached the far edge of the current tile (minus fireball radius)
+                let reached_far_edge = Tile::has_fireball_reached_far_edge(
+                    anim.current_tile_index,
+                    anim.direction,
+                    new_pos,
+                    fireball_radius,
+                    tile_size,
+                    offset_x,
+                    offset_y
+                );
+
+                if reached_far_edge {
+                    // Use the helper function to check if we'd hit a wall
+                    current_tile.would_fireball_hit_wall(
+                        anim.current_tile_index,
+                        anim.direction,
+                        &state.tiles
+                    )
+                } else {
+                    false // Still within current tile, no wall hit
+                }
+            };
+
+            if hit_wall {
+                log!(
+                    "🔥 [ANIMATION] Fireball {} hit wall at {:?}",
+                    anim.fireball_id,
+                    anim.current_pos
+                );
+                completed_indices.push(i);
+                fireballs_to_deactivate.push(anim.fireball_id);
+            } else {
+                // Move to new position
+                anim.current_pos = new_pos;
+
+                // Update the main fireball position to stay in sync
+                if
+                    let Some(fireball) = state.fireballs
+                        .iter_mut()
+                        .find(|f| f.id == anim.fireball_id)
+                {
+                    // Convert screen position back to tile position for the fireball struct
+                    let tile_x = ((new_pos.0 - (offset_x as f32)) / (tile_size as f32)) as usize;
+                    let tile_y = ((new_pos.1 - (offset_y as f32)) / (tile_size as f32)) as usize;
+                    fireball.position = (tile_x.min(4), tile_y.min(4)); // Clamp to map bounds
+                }
+
+                // Check if we've moved to a new tile and update current_tile_index
+                let new_tile_x = ((new_pos.0 - (offset_x as f32)) / (tile_size as f32)) as usize;
+                let new_tile_y = ((new_pos.1 - (offset_y as f32)) / (tile_size as f32)) as usize;
+                let new_tile_index = new_tile_x + new_tile_y * 5;
+
+                if new_tile_index != anim.current_tile_index && new_tile_index < 25 {
+                    anim.current_tile_index = new_tile_index;
+                }
+            }
+        }
+    }
+
+    // Deactivate completed fireballs
+    for fireball_id in fireballs_to_deactivate {
+        if let Some(fireball) = state.fireballs.iter_mut().find(|f| f.id == fireball_id) {
+            fireball.deactivate();
+        }
+    }
+
+    // Remove completed animations (in reverse order to maintain indices)
+    for &index in completed_indices.iter().rev() {
+        state.animated_fireballs.remove(index);
     }
 }

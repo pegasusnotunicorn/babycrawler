@@ -26,6 +26,7 @@ pub struct Card {
     pub effect: CardEffect,
     pub color: u32,
     pub hand_index: Option<usize>, // Track which hand slot this card came from
+    pub hide_confirm_button: bool,
 }
 
 const CARD_CONSTRUCTORS: &[fn() -> Card] = &[
@@ -60,6 +61,7 @@ impl Card {
             effect: CardEffect::RotateCard,
             color: 0xb804b8ff, // Light purple
             hand_index: None,
+            hide_confirm_button: false,
         }
     }
 
@@ -70,6 +72,7 @@ impl Card {
             effect: CardEffect::MoveOneTile,
             color: 0x00aa00ff, // Dark green
             hand_index: None,
+            hide_confirm_button: false,
         }
     }
 
@@ -80,6 +83,7 @@ impl Card {
             effect: CardEffect::SwapCard,
             color: 0xff8800ff, // Dark orange
             hand_index: None,
+            hide_confirm_button: false,
         }
     }
 
@@ -90,6 +94,7 @@ impl Card {
             effect: CardEffect::FireCard,
             color: 0x8b0000ff, // Dark red
             hand_index: None,
+            hide_confirm_button: true,
         }
     }
 
@@ -100,6 +105,7 @@ impl Card {
             effect: CardEffect::Dummy,
             color: CARD_DUMMY_COLOR,
             hand_index: None,
+            hide_confirm_button: false,
         }
     }
 

@@ -8,6 +8,7 @@ use crate::server::broadcast::{
     broadcast_tile_rotation,
     broadcast_player_moved,
     broadcast_tiles_swapped,
+    broadcast_fireball_shot,
 };
 use crate::game::cards::card::Card;
 use crate::game::constants::HAND_SIZE;
@@ -175,8 +176,7 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
         confirmed_cards_count: 0,
     });
 
-    broadcast_card_cancelled(hand_index, &card, user_id);
-    broadcast_board_state(&channel.board_tiles, &channel.board_players, &channel.current_turn);
+    broadcast_card_cancelled(&card, user_id);
 }
 
 pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card) {
@@ -294,4 +294,45 @@ pub fn handle_swap_tiles(
 
     channel.board_tiles.swap(tile_index_1, tile_index_2);
     broadcast_tiles_swapped(tile_index_1, tile_index_2);
+}
+
+pub fn handle_fireball_shot(
+    channel: &mut GameChannel,
+    user_id: &str,
+    target_tile: usize,
+    direction: crate::game::map::tile::Direction
+) {
+    log!(
+        "[GameChannel] FireballShot received from {user_id}: target_tile={}, direction={:?}",
+        target_tile,
+        direction
+    );
+
+    // Check if it's the user's turn
+    if let Some(current_turn) = &channel.current_turn {
+        if current_turn.player_id != user_id {
+            log!("[GameChannel] Not {}'s turn, ignoring fireball request", user_id);
+            return;
+        }
+    } else {
+        log!("[GameChannel] No active turn, ignoring fireball request");
+        return;
+    }
+
+    // Validate tile index
+    if target_tile >= channel.board_tiles.len() {
+        log!("[GameChannel] Invalid tile index: {}", target_tile);
+        return;
+    }
+
+    // Get player position
+    if let Some(player) = get_player_mut(channel, user_id) {
+        let player_pos = player.position;
+
+        // Create fireball at player position
+        let _fireball = crate::game::map::fireball::Fireball::new(10, player_pos, direction);
+
+        log!("[GameChannel] Fireball created at {:?} in direction {:?}", player_pos, direction);
+        broadcast_fireball_shot(user_id, target_tile, &direction);
+    }
 }

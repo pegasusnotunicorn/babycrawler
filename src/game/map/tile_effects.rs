@@ -1,5 +1,5 @@
 use crate::game::cards::card_effect::CardEffect;
-use crate::game::map::tile::Tile;
+use crate::game::map::tile::{ Tile, Direction };
 use crate::game::constants::MAP_SIZE;
 
 pub fn highlight_tiles_for_effect(
@@ -42,8 +42,6 @@ pub fn highlight_tiles_for_effect(
         CardEffect::FireCard => {
             // Highlight all tiles in straight lines from player's position that are connected by entrances
             // Check all four directions: Up, Down, Left, Right
-            use crate::game::map::tile::Direction;
-
             let directions = [Direction::Up, Direction::Down, Direction::Left, Direction::Right];
 
             for direction in directions {
@@ -54,7 +52,10 @@ pub fn highlight_tiles_for_effect(
                     None
                 );
                 for &index in &connected_indices {
-                    tiles[index].is_highlighted = true;
+                    // Don't highlight the tile the player is standing on
+                    if index != current_index {
+                        tiles[index].is_highlighted = true;
+                    }
                 }
             }
         }

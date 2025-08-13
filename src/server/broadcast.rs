@@ -44,15 +44,9 @@ pub fn broadcast_board_state(
     });
 }
 
-pub fn broadcast_card_cancelled(hand_index: usize, card: &Card, player_id: &str) {
-    log!(
-        "[GameChannel] Broadcasting card cancelled: hand_index={}, card={:?}, player={}",
-        hand_index,
-        card.name,
-        player_id
-    );
+pub fn broadcast_card_cancelled(card: &Card, player_id: &str) {
+    log!("[GameChannel] Broadcasting card cancelled: card={:?}, player={}", card.name, player_id);
     broadcast_generic(ServerToClient::CardCancelled {
-        card_index: hand_index,
         card: card.clone(),
         player_id: player_id.to_string(),
     });
@@ -98,5 +92,23 @@ pub fn broadcast_tiles_swapped(tile_index_1: usize, tile_index_2: usize) {
     broadcast_generic(ServerToClient::TilesSwapped {
         tile_index_1,
         tile_index_2,
+    });
+}
+
+pub fn broadcast_fireball_shot(
+    player_id: &str,
+    tile_index: usize,
+    direction: &crate::game::map::tile::Direction
+) {
+    log!(
+        "[GameChannel] Broadcasting fireball shot: player={}, index={}, direction={:?}",
+        player_id,
+        tile_index,
+        direction
+    );
+    broadcast_generic(ServerToClient::FireballShot {
+        player_id: player_id.to_string(),
+        tile_index,
+        direction: direction.clone(),
     });
 }

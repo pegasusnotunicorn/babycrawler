@@ -126,6 +126,9 @@ impl os::server::channel::ChannelHandler for GameChannel {
             ClientToServer::SwapTiles { tile_index_1, tile_index_2 } => {
                 handle_swap_tiles(self, user_id, tile_index_1, tile_index_2);
             }
+            ClientToServer::FireballShot { target_tile, direction } => {
+                handle_fireball_shot(self, user_id, target_tile, direction);
+            }
         }
         Ok(())
     }
