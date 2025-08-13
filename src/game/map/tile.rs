@@ -220,8 +220,8 @@ impl Tile {
         reachable
     }
 
-    /// Find the shortest path between two tiles using BFS
-    pub fn find_path(
+    /// Find the shortest walkable path between two tiles using BFS
+    pub fn find_walkable_path(
         start_index: usize,
         target_index: usize,
         tiles: &[Tile]
@@ -293,6 +293,86 @@ impl Tile {
         }
 
         None // No path found
+    }
+
+    /// Finds all tiles in a straight line that have connected entrances
+    /// Returns a vector of tile indices that form a connected path
+    pub fn find_connected_line(
+        start_index: usize,
+        direction: Direction,
+        tiles: &[Tile],
+        max_distance: Option<usize>
+    ) -> Vec<usize> {
+        let mut connected_tiles = vec![start_index];
+        let mut current_index = start_index;
+        let max_dist = max_distance.unwrap_or(MAP_SIZE);
+
+        for _ in 0..max_dist {
+            let next_index = match direction {
+                Direction::Up => {
+                    if current_index >= MAP_SIZE {
+                        break;
+                    }
+                    current_index.saturating_sub(MAP_SIZE)
+                }
+                Direction::Down => {
+                    let new_index = current_index + MAP_SIZE;
+                    if new_index >= tiles.len() {
+                        break;
+                    }
+                    new_index
+                }
+                Direction::Left => {
+                    if current_index % MAP_SIZE == 0 {
+                        break;
+                    }
+                    current_index - 1
+                }
+                Direction::Right => {
+                    if (current_index + 1) % MAP_SIZE == 0 {
+                        break;
+                    }
+                    current_index + 1
+                }
+            };
+
+            // Check if we've reached the edge or if the tiles are connected
+            if next_index == current_index || next_index >= tiles.len() {
+                break;
+            }
+
+            let current_tile = &tiles[current_index];
+            let next_tile = &tiles[next_index];
+
+            // Check if the tiles have matching entrances
+            let has_connection = match direction {
+                Direction::Up => {
+                    current_tile.entrances.contains(&Direction::Up) &&
+                        next_tile.entrances.contains(&Direction::Down)
+                }
+                Direction::Down => {
+                    current_tile.entrances.contains(&Direction::Down) &&
+                        next_tile.entrances.contains(&Direction::Up)
+                }
+                Direction::Left => {
+                    current_tile.entrances.contains(&Direction::Left) &&
+                        next_tile.entrances.contains(&Direction::Right)
+                }
+                Direction::Right => {
+                    current_tile.entrances.contains(&Direction::Right) &&
+                        next_tile.entrances.contains(&Direction::Left)
+                }
+            };
+
+            if has_connection {
+                connected_tiles.push(next_index);
+                current_index = next_index;
+            } else {
+                break; // No connection, stop the line
+            }
+        }
+
+        connected_tiles
     }
 
     /// Swaps state with another tile, including grid position and entrances

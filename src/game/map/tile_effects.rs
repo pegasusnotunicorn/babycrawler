@@ -40,11 +40,22 @@ pub fn highlight_tiles_for_effect(
         }
 
         CardEffect::FireCard => {
-            // TODO: Implement fire card tile highlighting
-            // For now, highlight adjacent tiles like swap card
-            tiles[current_index].is_highlighted = true; // Current tile
-            for i in Tile::get_adjacent_indices(current_index, true, true) {
-                tiles[i].is_highlighted = true;
+            // Highlight all tiles in straight lines from player's position that are connected by entrances
+            // Check all four directions: Up, Down, Left, Right
+            use crate::game::map::tile::Direction;
+
+            let directions = [Direction::Up, Direction::Down, Direction::Left, Direction::Right];
+
+            for direction in directions {
+                let connected_indices = Tile::find_connected_line(
+                    current_index,
+                    direction,
+                    tiles,
+                    None
+                );
+                for &index in &connected_indices {
+                    tiles[index].is_highlighted = true;
+                }
             }
         }
     }

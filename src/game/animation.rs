@@ -272,7 +272,7 @@ pub fn start_player_movement_animation(
     // Find the path from start to target
     let start_index = Tile::index(from_pos.0, from_pos.1);
     let target_index = Tile::index(to_pos.0, to_pos.1);
-    let path = Tile::find_path(start_index, target_index, &state.tiles).unwrap_or_else(||
+    let path = Tile::find_walkable_path(start_index, target_index, &state.tiles).unwrap_or_else(||
         vec![start_index, target_index]
     );
 
