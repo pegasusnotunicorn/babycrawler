@@ -21,7 +21,7 @@ pub const FLOOR_COLOR: u32 = 0x000000ff; // Black
 
 // card colors
 pub const CARD_DUMMY_COLOR: u32 = 0xffffff80;
-pub const CARD_HOVER_FILL_COLOR: u32 = 0xffffff50;
+pub const CARD_HOVER_OUTLINE_COLOR: u32 = 0xffffffaa;
 pub const CARD_BUTTON_A_COLOR: u32 = 0x118811ff;
 pub const CARD_BUTTON_B_COLOR: u32 = 0xff2222ff;
 

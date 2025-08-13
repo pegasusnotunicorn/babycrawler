@@ -217,6 +217,11 @@ pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected:
         CardEffect::revert_tile_positions(state);
     }
 
+    if let CardEffect::FireCard = selected.effect {
+        // TODO: Implement fire card cancel logic
+        // For now, no special handling needed
+    }
+
     let play_area_row = get_play_area_row(state);
     let (from_x, from_y) = play_area_row.get_slot_position(play_area_idx);
 

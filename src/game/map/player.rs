@@ -32,12 +32,20 @@ impl Player {
         }
     }
 
+    // No duplicates in hand
     pub fn new_hand(hand_size: usize, is_dummy: bool) -> Vec<Card> {
-        let mut hand = Vec::new();
-        for _ in 0..hand_size {
-            hand.push(if is_dummy { Card::dummy_card() } else { Card::random() });
+        if is_dummy {
+            (0..hand_size).map(|_| Card::dummy_card()).collect()
+        } else {
+            let mut all_cards = Card::get_unique_cards();
+
+            for i in (1..all_cards.len()).rev() {
+                let j = (random::u32() as usize) % (i + 1);
+                all_cards.swap(i, j);
+            }
+
+            all_cards.into_iter().take(hand_size).collect()
         }
-        hand
     }
 
     pub fn move_to(&mut self, to_index: usize) {

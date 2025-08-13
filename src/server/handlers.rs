@@ -11,6 +11,7 @@ use crate::server::broadcast::{
 };
 use crate::game::cards::card::Card;
 use crate::game::constants::HAND_SIZE;
+use crate::game::map::player::Player;
 
 /// Helper function to get the player index for a given user_id
 fn get_player_index(channel: &GameChannel, user_id: &str) -> Option<usize> {
@@ -29,14 +30,13 @@ fn get_player_mut<'a>(
 /// Helper function to give a player a new hand of random cards
 pub fn give_player_new_hand(channel: &mut GameChannel, user_id: &str) {
     if let Some(player) = get_player_mut(channel, user_id) {
-        player.hand.clear();
-        for i in 0..HAND_SIZE {
-            let mut card = Card::random();
+        let mut new_hand = Player::new_hand(HAND_SIZE, false);
+
+        for (i, card) in new_hand.iter_mut().enumerate() {
             card.hand_index = Some(i);
-            log!("[GameChannel] Created card {} with hand_index: {:?}", card.name, card.hand_index);
-            player.hand.push(card);
         }
-        log!("[GameChannel] Gave new hand to player {:?}", player.id);
+
+        player.hand = new_hand;
     }
 }
 
@@ -44,10 +44,8 @@ pub fn give_player_new_hand(channel: &mut GameChannel, user_id: &str) {
 pub fn handle_new_turn(channel: &mut GameChannel, user_id: &str) {
     log!("[GameChannel] Player {user_id} has ended their turn");
 
-    // Give the old player a new hand of random cards
     give_player_new_hand(channel, user_id);
 
-    // Move to next player's turn
     channel.current_turn_index = (channel.current_turn_index + 1) % channel.players.len();
 
     if let Some(next_user_id) = channel.players.get(channel.current_turn_index) {
@@ -57,9 +55,6 @@ pub fn handle_new_turn(channel: &mut GameChannel, user_id: &str) {
             selected_card_index: 0,
             confirmed_cards_count: 0,
         });
-
-        // log the rotation of the first tile
-        log!("[GameChannel] Tile 0 rotation: {:?}", channel.board_tiles[0].current_rotation);
 
         broadcast_board_state(&channel.board_tiles, &channel.board_players, &channel.current_turn);
     }
@@ -154,6 +149,11 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
                 );
             }
         }
+        CardEffect::FireCard => {
+            // TODO: Implement fire card cancel logic
+            // For now, no special handling needed
+            log!("[GameChannel] FireCard cancelled - no special handling needed");
+        }
         _ => {
             // For other card types, no special handling needed
             // Just update the turn state below
@@ -197,6 +197,11 @@ pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card)
             for (current_index, tile) in channel.board_tiles.iter_mut().enumerate() {
                 tile.original_location = current_index;
             }
+        }
+        CardEffect::FireCard => {
+            // TODO: Implement fire card confirm logic
+            // For now, no special handling needed
+            log!("[GameChannel] FireCard confirmed - no special handling needed");
         }
         _ => {
             // Do nothing for other card types

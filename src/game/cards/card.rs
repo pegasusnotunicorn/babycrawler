@@ -3,7 +3,7 @@ use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 use crate::game::constants::{
     GAME_PADDING,
-    CARD_HOVER_FILL_COLOR,
+    CARD_HOVER_OUTLINE_COLOR,
     GAME_BG_COLOR,
     FLASH_SPEED,
     CARD_DUMMY_COLOR,
@@ -28,7 +28,12 @@ pub struct Card {
     pub hand_index: Option<usize>, // Track which hand slot this card came from
 }
 
-const CARD_CONSTRUCTORS: &[fn() -> Card] = &[Card::move_card, Card::rotate_card, Card::swap_card];
+const CARD_CONSTRUCTORS: &[fn() -> Card] = &[
+    Card::move_card,
+    Card::rotate_card,
+    Card::swap_card,
+    Card::fire_card,
+];
 
 impl Card {
     pub fn toggle_selection(selected: &mut Option<Card>, card: &Card) {
@@ -42,6 +47,10 @@ impl Card {
     pub fn random() -> Self {
         let index = (random::u32() as usize) % CARD_CONSTRUCTORS.len();
         (CARD_CONSTRUCTORS[index])()
+    }
+
+    pub fn get_unique_cards() -> Vec<Self> {
+        vec![Self::move_card(), Self::rotate_card(), Self::swap_card(), Self::fire_card()]
     }
 
     pub fn rotate_card() -> Self {
@@ -70,6 +79,16 @@ impl Card {
             name: "SWAP".into(),
             effect: CardEffect::SwapCard,
             color: 0xff8800ff, // Dark orange
+            hand_index: None,
+        }
+    }
+
+    pub fn fire_card() -> Self {
+        Self {
+            id: random::u32(),
+            name: "FIRE".into(),
+            effect: CardEffect::FireCard,
+            color: 0x8b0000ff, // Dark red
             hand_index: None,
         }
     }
@@ -116,7 +135,7 @@ impl Card {
                 y = y + inset,
                 w = w.saturating_sub(inset * 2),
                 h = h.saturating_sub(inset * 2),
-                color = CARD_HOVER_FILL_COLOR,
+                color = CARD_HOVER_OUTLINE_COLOR,
                 border_radius = h / 3 - 1
             );
         }
@@ -145,7 +164,8 @@ impl Card {
         let inner_y = y + inset;
         let inner_w = w.saturating_sub(border_width);
         let inner_h = h.saturating_sub(border_width);
-        // Selected state: flashing outline
+
+        // Outline
         if visual_state.contains(CardVisualState::SELECTED) {
             let t: f64 = frame.unwrap_or(0.0) * FLASH_SPEED;
             let t = t.sin() * 0.5 + 0.5;
@@ -153,8 +173,11 @@ impl Card {
             let flash_color: u32 = (0xff << 24) | (0xff << 16) | (0xff << 8) | alpha;
             rect!(x = x, y = y, w = w, h = h, color = flash_color, border_radius = border_radius);
         } else if outline {
-            rect!(x = x, y = y, w = w, h = h, color = outline_color, border_radius = border_radius);
+            let hovered = visual_state.contains(CardVisualState::HOVERED);
+            let color = if hovered { CARD_HOVER_OUTLINE_COLOR } else { outline_color };
+            rect!(x = x, y = y, w = w, h = h, color = color, border_radius = border_radius);
         }
+
         // Card fill
         let fill_color = if visual_state.contains(CardVisualState::DUMMY) {
             GAME_BG_COLOR
@@ -169,18 +192,7 @@ impl Card {
             color = fill_color,
             border_radius = border_radius
         );
-        // Always draw hover overlay if HOVERED is set (even for dummy)
-        if visual_state.contains(CardVisualState::HOVERED) {
-            let highlight_color = CARD_HOVER_FILL_COLOR;
-            rect!(
-                x = inner_x,
-                y = inner_y,
-                w = inner_w,
-                h = inner_h,
-                color = highlight_color,
-                border_radius = border_radius
-            );
-        }
+
         // Draw label if not dummy
         if !visual_state.contains(CardVisualState::DUMMY) {
             let border_width = GAME_PADDING;

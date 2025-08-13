@@ -38,5 +38,14 @@ pub fn highlight_tiles_for_effect(
                 tiles[i].is_highlighted = true;
             }
         }
+
+        CardEffect::FireCard => {
+            // TODO: Implement fire card tile highlighting
+            // For now, highlight adjacent tiles like swap card
+            tiles[current_index].is_highlighted = true; // Current tile
+            for i in Tile::get_adjacent_indices(current_index, true, true) {
+                tiles[i].is_highlighted = true;
+            }
+        }
     }
 }

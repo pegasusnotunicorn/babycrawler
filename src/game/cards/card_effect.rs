@@ -8,12 +8,23 @@ use turbo::*;
 use serde::{ Serialize, Deserialize };
 use turbo::borsh::{ BorshDeserialize, BorshSerialize };
 
-#[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    BorshDeserialize,
+    BorshSerialize,
+    Serialize,
+    Deserialize
+)]
 pub enum CardEffect {
     Dummy,
     MoveOneTile,
     RotateCard,
     SwapCard,
+    FireCard,
 }
 
 impl CardEffect {
@@ -23,6 +34,7 @@ impl CardEffect {
             CardEffect::MoveOneTile => self.apply_move_one_tile(state, tile_index),
             CardEffect::RotateCard => self.apply_rotate_card(state, tile_index),
             CardEffect::SwapCard => self.apply_swap_card(state, tile_index),
+            CardEffect::FireCard => self.apply_fire_card(state, tile_index),
         }
     }
 
@@ -100,10 +112,14 @@ impl CardEffect {
         if state.swap_tiles_selected.len() == 2 {
             let tile1 = state.swap_tiles_selected[0];
             let tile2 = state.swap_tiles_selected[1];
-
             send_swap_tiles(tile1, tile2);
             state.swap_tiles_selected.clear();
         }
+    }
+
+    fn apply_fire_card(&self, _state: &mut GameState, _tile_index: usize) {
+        // TODO: Implement fire card effect
+        // For now, it does nothing
     }
 
     // Add a function to revert all tiles to their original_rotation
