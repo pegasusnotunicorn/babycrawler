@@ -25,6 +25,7 @@ pub struct Card {
     pub name: String,
     pub effect: CardEffect,
     pub color: u32,
+    pub hand_index: Option<usize>, // Track which hand slot this card came from
 }
 
 const CARD_CONSTRUCTORS: &[fn() -> Card] = &[Card::move_card, Card::rotate_card, Card::swap_card];
@@ -49,6 +50,7 @@ impl Card {
             name: "Rotate".into(),
             effect: CardEffect::RotateCard,
             color: 0x3366ccff, // Blue
+            hand_index: None,
         }
     }
 
@@ -58,6 +60,7 @@ impl Card {
             name: "Move".into(),
             effect: CardEffect::MoveOneTile,
             color: 0x33cc33ff, // Green
+            hand_index: None,
         }
     }
 
@@ -67,6 +70,7 @@ impl Card {
             name: "Swap".into(),
             effect: CardEffect::SwapCard,
             color: 0xffa500ff, // Orange
+            hand_index: None,
         }
     }
 
@@ -76,6 +80,7 @@ impl Card {
             name: String::new(),
             effect: CardEffect::Dummy,
             color: CARD_DUMMY_COLOR,
+            hand_index: None,
         }
     }
 

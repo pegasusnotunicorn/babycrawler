@@ -8,7 +8,7 @@ use crate::game::cards::card::Card;
 use crate::server::broadcast::{ broadcast_generic, broadcast_turn, broadcast_board_state };
 use crate::server::handlers::*;
 
-#[turbo::os::channel(program = "server", name = "game")]
+#[turbo::os::channel(program = "game_server", name = "game")]
 pub struct GameChannel {
     pub players: Vec<String>,
     pub current_turn_index: usize,
@@ -22,6 +22,7 @@ pub struct CurrentTurn {
     pub player_id: String,
     pub selected_card: Option<Card>,
     pub selected_card_index: usize,
+    pub confirmed_cards_count: usize,
 }
 
 impl os::server::channel::ChannelHandler for GameChannel {
@@ -30,8 +31,8 @@ impl os::server::channel::ChannelHandler for GameChannel {
 
     fn new() -> Self {
         let board_players = vec![
-            Player::new(PlayerId::Player1, 0, 0, HAND_SIZE),
-            Player::new(PlayerId::Player2, MAP_SIZE - 1, MAP_SIZE - 1, HAND_SIZE)
+            Player::new(PlayerId::Player1, 0, 0, HAND_SIZE, false),
+            Player::new(PlayerId::Player2, MAP_SIZE - 1, MAP_SIZE - 1, HAND_SIZE, false)
         ];
         let board_tiles = random_tiles(MAP_SIZE * MAP_SIZE);
 
@@ -56,6 +57,13 @@ impl os::server::channel::ChannelHandler for GameChannel {
         // Only start the game when we have 2 players
         if self.players.len() == 2 {
             self.current_turn_index = 0;
+
+            // Give initial hands to both players
+            let player_ids: Vec<String> = self.players.clone();
+            for player_id in player_ids {
+                crate::server::handlers::give_player_new_hand(self, &player_id);
+            }
+
             broadcast_turn(
                 &self.players,
                 self.current_turn_index,
@@ -63,9 +71,6 @@ impl os::server::channel::ChannelHandler for GameChannel {
                 &self.board_tiles,
                 &self.board_players
             );
-        } else if self.players.len() == 1 {
-            // Send board state but no current turn (game not started yet)
-            broadcast_board_state(&self.board_tiles, &self.board_players, &None);
         }
         Ok(())
     }
@@ -101,19 +106,19 @@ impl os::server::channel::ChannelHandler for GameChannel {
         log!("[GameChannel] on_data called for user_id: {user_id}");
         match data {
             ClientToServer::EndTurn => {
-                handle_end_turn(self, user_id);
+                handle_new_turn(self, user_id);
             }
-            ClientToServer::SelectCard { card_index, card } => {
-                handle_select_card(self, user_id, card_index, card);
+            ClientToServer::SelectCard { hand_index } => {
+                handle_select_card(self, user_id, hand_index);
             }
-            ClientToServer::CancelSelectCard { card_index, card } => {
-                handle_cancel_select_card(self, user_id, card_index, card);
+            ClientToServer::CancelSelectCard { hand_index } => {
+                handle_cancel_select_card(self, user_id, hand_index);
             }
             ClientToServer::ConfirmCard { card } => {
                 handle_confirm_card(self, user_id, card);
             }
-            ClientToServer::RotateTile { tile_index, clockwise } => {
-                handle_rotate_tile(self, user_id, tile_index, clockwise);
+            ClientToServer::RotateTile { tile_index } => {
+                handle_rotate_tile(self, user_id, tile_index);
             }
             ClientToServer::MovePlayer { new_position, is_canceled } => {
                 handle_move_player(self, user_id, new_position, is_canceled);

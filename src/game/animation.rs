@@ -2,7 +2,7 @@ use turbo::*;
 use crate::GameState;
 use crate::game::map::tile::{ TileRotationAnim, Tile, clear_highlights };
 use crate::game::map::tile_effects::highlight_tiles_for_effect;
-use crate::network::send::{ send_card_selection, send_card_cancel };
+use crate::network::send::send_card_selection;
 use crate::game::cards::card::Card;
 
 #[derive(
@@ -141,12 +141,24 @@ pub fn update_animated_card_spring(state: &mut GameState) -> bool {
 }
 
 pub fn handle_animated_card_complete(state: &mut crate::GameState) {
+    log!("🎮 [ANIMATION] handle_animated_card_complete");
     let animated = state.animated_card.as_ref().cloned();
     if let Some(drag) = animated {
         if drag.target_row == AnimatedCardOrigin::PlayArea {
-            send_card_selection(drag.target_row_index, &drag.card);
+            // Immediately update the play area for instant feedback
+            state.play_area[drag.target_row_index] = drag.card.clone();
+            state.selected_card = Some(drag.card.clone());
+            highlight_selected_card_tiles(state);
+            if let Some(hand_index) = drag.card.hand_index {
+                send_card_selection(hand_index);
+            }
         } else if drag.target_row == AnimatedCardOrigin::Hand {
-            send_card_cancel(drag.target_row_index, &drag.card);
+            // Card is returning to hand from play area - restore it to the hand
+            if let Some(player) = state.get_local_player_mut() {
+                if drag.target_row_index < player.hand.len() {
+                    player.hand[drag.target_row_index] = drag.card.clone();
+                }
+            }
         }
     }
     state.animated_card = None;
@@ -164,18 +176,40 @@ pub fn highlight_selected_card_tiles(state: &mut GameState) {
 }
 
 /// Starts a tile rotation animation for a given tile index.
+/// If target_rotation is provided, rotates to that specific rotation.
+/// If clockwise is provided, rotates by 90 degrees in that direction.
 pub fn start_tile_rotation_animation(
     state: &mut GameState,
     tile_index: usize,
-    clockwise: bool,
+    target_rotation: Option<u8>,
     duration: f64
 ) {
     let tile = &mut state.tiles[tile_index];
     if tile.rotation_anim.is_some() {
         return; // Already animating
     }
-    let from_angle = 0.0;
-    let to_angle = if clockwise { 90.0 } else { -90.0 };
+
+    let (from_angle, to_angle, clockwise) = if let Some(target) = target_rotation {
+        // Rotate to specific target rotation
+        let current = tile.current_rotation as i32;
+        let target = target as i32;
+
+        // Calculate the shortest rotation path
+        let clockwise_dist = (4 + target - current) % 4;
+        let counter_clockwise_dist = (4 + current - target) % 4;
+
+        let clockwise = clockwise_dist <= counter_clockwise_dist;
+        let rotation_count = if clockwise { clockwise_dist } else { counter_clockwise_dist };
+
+        // Calculate total rotation angle
+        let total_angle = if clockwise { rotation_count * 90 } else { rotation_count * -90 };
+
+        (0.0, total_angle as f32, clockwise)
+    } else {
+        // Default behavior: rotate by 90 degrees clockwise
+        (0.0, 90.0, true)
+    };
+
     tile.rotation_anim = Some(TileRotationAnim {
         from_angle,
         to_angle,
@@ -188,21 +222,36 @@ pub fn start_tile_rotation_animation(
 
 /// Call this every frame to update all tile rotation animations.
 pub fn update_tile_rotation_animations(state: &mut GameState, dt: f64) {
-    for tile in &mut state.tiles {
+    // Collect pending rotations that need to be started
+    let mut pending_rotations: Vec<(usize, u8)> = Vec::new();
+
+    for (i, tile) in state.tiles.iter_mut().enumerate() {
+        // Handle pending rotations (debounced fast rotations)
+        if let Some(pending) = &mut tile.pending_rotation {
+            pending.timer -= dt;
+            if pending.timer <= 0.0 {
+                // Timer expired, collect this rotation to start
+                if tile.rotation_anim.is_none() {
+                    pending_rotations.push((i, pending.target));
+                }
+                tile.pending_rotation = None;
+            }
+        }
+
+        // Update existing rotation animations
         if let Some(anim) = &mut tile.rotation_anim {
             anim.elapsed += dt;
             let t = (anim.elapsed / anim.duration).min(1.0) as f32;
             anim.current_angle = anim.from_angle + (anim.to_angle - anim.from_angle) * t;
             if t >= 1.0 {
-                // Complete the rotation
-                if anim.clockwise {
-                    tile.rotate_clockwise(1);
-                } else {
-                    tile.rotate_clockwise(3);
-                }
-                tile.rotation_anim = None;
+                tile.rotation_anim = None; // Animation complete
             }
         }
+    }
+
+    // Start pending rotations after the loop to avoid borrowing conflicts
+    for (tile_index, target_rotation) in pending_rotations {
+        start_tile_rotation_animation(state, tile_index, Some(target_rotation), 0.25);
     }
 }
 

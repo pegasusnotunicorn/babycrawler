@@ -19,11 +19,8 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: PlayerId, x: usize, y: usize, hand_size: usize) -> Self {
-        let mut hand = Vec::new();
-        for _ in 0..hand_size {
-            hand.push(Card::random());
-        }
+    pub fn new(id: PlayerId, x: usize, y: usize, hand_size: usize, is_dummy: bool) -> Self {
+        let hand = Self::new_hand(hand_size, is_dummy);
 
         Self {
             id,
@@ -31,6 +28,14 @@ impl Player {
             original_position: (x, y),
             hand,
         }
+    }
+
+    pub fn new_hand(hand_size: usize, is_dummy: bool) -> Vec<Card> {
+        let mut hand = Vec::new();
+        for _ in 0..hand_size {
+            hand.push(if is_dummy { Card::dummy_card() } else { Card::random() });
+        }
+        hand
     }
 
     pub fn move_to(&mut self, to_index: usize) {

@@ -4,17 +4,17 @@ use crate::server::GameChannel;
 use crate::game::constants::GAME_CHANNEL;
 use super::ClientToServer;
 
-pub fn send_card_selection(card_index: usize, card: &Card) {
-    log!("🚀 [SEND] Card selection: {}", card.name);
-    let msg = ClientToServer::SelectCard { card_index, card: card.clone() };
+pub fn send_card_selection(hand_index: usize) {
+    log!("🚀 [SEND] Card selection at hand index: {}", hand_index);
+    let msg = ClientToServer::SelectCard { hand_index };
     if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
         let _ = conn.send(&msg);
     }
 }
 
-pub fn send_card_cancel(card_index: usize, card: &Card) {
-    log!("🚀 [SEND] Card cancel: {}", card.name);
-    let msg = ClientToServer::CancelSelectCard { card_index, card: card.clone() };
+pub fn send_card_cancel(hand_index: usize) {
+    log!("🚀 [SEND] Card cancel at hand index: {}", hand_index);
+    let msg = ClientToServer::CancelSelectCard { hand_index };
     if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
         let _ = conn.send(&msg);
     }
@@ -28,9 +28,9 @@ pub fn send_end_turn() {
     }
 }
 
-pub fn send_tile_rotation(tile_index: usize, clockwise: bool) {
-    log!("🚀 [SEND] Tile rotation: {}", tile_index);
-    let msg = ClientToServer::RotateTile { tile_index, clockwise };
+pub fn send_tile_rotation(tile_index: usize) {
+    log!("🚀 [SEND] Rotate tile index: {}", tile_index);
+    let msg = ClientToServer::RotateTile { tile_index };
     if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
         let _ = conn.send(&msg);
     }

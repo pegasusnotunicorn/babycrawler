@@ -9,19 +9,16 @@ pub mod receive;
 pub enum ClientToServer {
     EndTurn,
     SelectCard {
-        card_index: usize,
-        card: Card,
+        hand_index: usize,
     },
     CancelSelectCard {
-        card_index: usize,
-        card: Card,
+        hand_index: usize,
     },
     ConfirmCard {
         card: Card,
     },
     RotateTile {
         tile_index: usize,
-        clockwise: bool,
     },
     MovePlayer {
         new_position: (usize, usize),
@@ -43,27 +40,28 @@ pub enum ServerToClient {
         players: Vec<crate::game::map::player::Player>,
         current_turn: Option<crate::server::CurrentTurn>,
     },
-    CardSelected {
-        user_id: String,
+
+    CardCancelled {
         card_index: usize,
         card: Card,
-        original_position: Option<(usize, usize)>,
-    },
-    CardCanceled {
-        user_id: String,
-        card_index: usize,
-        card: Card,
+        player_id: String,
     },
     CardConfirmed {
-        user_id: String,
         card: Card,
+        player_id: String,
     },
     TileRotated {
         tile_index: usize,
-        clockwise: bool,
+        tile: crate::game::map::tile::Tile,
+        player_id: String,
     },
     PlayerMoved {
         player_id: String,
         new_position: (usize, usize),
+        is_canceled: bool,
+    },
+    TilesSwapped {
+        tile_index_1: usize,
+        tile_index_2: usize,
     },
 }

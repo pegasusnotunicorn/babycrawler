@@ -18,9 +18,11 @@ pub struct Tile {
     pub is_highlighted: bool,
     #[serde(skip, default)]
     pub rotation_anim: Option<TileRotationAnim>,
+    #[serde(skip, default)]
+    pub pending_rotation: Option<PendingRotation>,
     pub original_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
-    pub current_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
     pub original_location: usize, // original tile index position
+    pub current_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -31,6 +33,12 @@ pub struct TileRotationAnim {
     pub duration: f64,
     pub elapsed: f64,
     pub clockwise: bool,
+}
+
+#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+pub struct PendingRotation {
+    pub target: u8,
+    pub timer: f64,
 }
 
 #[derive(
@@ -57,9 +65,10 @@ impl Tile {
             entrances,
             is_highlighted: false,
             rotation_anim: None,
+            pending_rotation: None,
             original_rotation: 0,
+            original_location: 0,
             current_rotation: 0,
-            original_location: 0, // Will be set when tile is created
         }
     }
 
@@ -292,9 +301,13 @@ impl Tile {
         std::mem::swap(&mut self.is_highlighted, &mut other.is_highlighted);
     }
 
-    /// Rotate all entrances clockwise
-    pub fn rotate_clockwise(&mut self, times: usize) {
+    // Rotate the entrances to a specific rotation
+    pub fn rotate_entrances(&mut self, rotation: u8) {
         use Direction::*;
+
+        // Calculate how many 90-degree rotations we need to apply from the current state
+        let rotations_needed = (4 + (rotation as i32) - (self.current_rotation as i32)) % 4;
+
         self.entrances = self.entrances
             .iter()
             .map(|dir| {
@@ -304,17 +317,20 @@ impl Tile {
                     Down => 2,
                     Left => 3,
                 };
-                n = (n + times) % 4;
-                match n {
+                // Apply the calculated rotations
+                n = (n + (rotations_needed as usize)) % 4;
+                let result = match n {
                     0 => Up,
                     1 => Right,
                     2 => Down,
                     3 => Left,
                     _ => unreachable!(),
-                }
+                };
+                result
             })
             .collect();
-        self.current_rotation = (self.current_rotation + (times as u8)) % 4;
+
+        self.current_rotation = rotation;
     }
 
     /// Draws the tile, including walls and floor and optional highlight pulse
@@ -340,10 +356,12 @@ impl Tile {
             WALL_COLOR
         };
 
-        let angle = self.rotation_anim
-            .as_ref()
-            .map(|a| a.current_angle)
-            .unwrap_or(0.0) as i32;
+        let angle = (if let Some(anim) = &self.rotation_anim {
+            anim.current_angle
+        } else {
+            // Use current_rotation when not animating
+            (self.current_rotation as f32) * 90.0 // Convert rotation (0,1,2,3) to degrees (0°, 90°, 180°, 270°)
+        }) as i32;
         let seg = ts / 3;
 
         // 🔳 Step 1: Draw outer border walls
@@ -369,8 +387,7 @@ impl Tile {
                             y = y,
                             w = ts - seg * 2,
                             h = wall_width,
-                            color = FLOOR_COLOR,
-                            rotation = angle
+                            color = FLOOR_COLOR
                         );
                     }
                     Direction::Down => {
@@ -379,8 +396,7 @@ impl Tile {
                             y = y + ts - wall_width,
                             w = ts - seg * 2,
                             h = wall_width,
-                            color = FLOOR_COLOR,
-                            rotation = angle
+                            color = FLOOR_COLOR
                         );
                     }
                     Direction::Left => {
@@ -389,8 +405,7 @@ impl Tile {
                             y = y + seg,
                             w = wall_width,
                             h = ts - seg * 2,
-                            color = FLOOR_COLOR,
-                            rotation = angle
+                            color = FLOOR_COLOR
                         );
                     }
                     Direction::Right => {
@@ -399,8 +414,7 @@ impl Tile {
                             y = y + seg,
                             w = wall_width,
                             h = ts - seg * 2,
-                            color = FLOOR_COLOR,
-                            rotation = angle
+                            color = FLOOR_COLOR
                         );
                     }
                 }

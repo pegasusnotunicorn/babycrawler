@@ -8,7 +8,8 @@ use crate::game::util::rects_intersect_outline_to_inner;
 use turbo::*;
 use crate::game::cards::card_effect::CardEffect;
 use crate::game::animation::{ highlight_selected_card_tiles, AnimatedCardOrigin, AnimatedCard };
-use crate::network::send::send_confirm_card;
+use crate::network::send::{ send_card_cancel, send_confirm_card };
+use crate::game::map::clear_highlights;
 
 // #region Helper functions
 
@@ -91,6 +92,16 @@ pub fn handle_card_drag(
                     let hand_has_card = player.hand.get(idx).is_some();
                     if hand_has_card {
                         let card = player.hand[idx].clone();
+                        if card.is_dummy() {
+                            return; // Don't allow dragging dummy cards
+                        }
+
+                        log!(
+                            "🔍 [DRAG] Creating AnimatedCard with card: {:?}, hand_index: {:?}",
+                            card.name,
+                            card.hand_index
+                        );
+
                         player.hand[idx] = Card::dummy_card();
                         let origin_pos = get_hand_slot_pos(&hand_row, idx);
                         dragged = Some(AnimatedCard {
@@ -194,8 +205,10 @@ pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMo
     }
 }
 
-/// Moves a card from the play area to the first empty hand slot, updates state, and sets up spring-back animation.
+/// Moves a card from the play area back to its original hand slot, updates state, and sets up spring-back animation.
 pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected: &Card) {
+    log!("🔍 [CANCEL] Card: {:?}, hand_index: {:?}", selected.name, selected.hand_index);
+
     if let CardEffect::RotateCard = selected.effect {
         CardEffect::revert_tile_rotations(&mut state.tiles);
     }
@@ -206,48 +219,43 @@ pub fn handle_card_cancel(state: &mut GameState, play_area_idx: usize, selected:
 
     let play_area_row = get_play_area_row(state);
     let (from_x, from_y) = play_area_row.get_slot_position(play_area_idx);
-    if let Some(player) = state.get_local_player_mut() {
-        let empty_idx = player.hand.iter().position(|c| c.id == 0);
-        if let Some(empty_idx) = empty_idx {
-            state.play_area[play_area_idx] = Card::dummy_card();
-            let hand_row = get_hand_row(state);
-            let (to_x, to_y) = hand_row.get_slot_position(empty_idx);
 
-            // Set up AnimatedCard for spring-back animation
-            state.animated_card = Some(AnimatedCard {
-                card: selected.clone(),
-                pos: (from_x as f32, from_y as f32),
-                velocity: (0.0, 0.0),
-                origin_row: AnimatedCardOrigin::PlayArea,
-                origin_row_index: play_area_idx,
-                origin_pos: (from_x as f32, from_y as f32),
-                target_row: AnimatedCardOrigin::Hand,
-                target_row_index: empty_idx,
-                target_pos: (to_x as f32, to_y as f32),
-                dragging: false,
-                animating: true,
-            });
-            highlight_selected_card_tiles(state);
+    // Find the original hand slot where this card came from
+    if let Some(original_hand_idx) = selected.hand_index {
+        if let Some(player) = state.get_local_player_mut() {
+            if original_hand_idx < player.hand.len() {
+                send_card_cancel(original_hand_idx);
+
+                // Clear the play area slot first
+                state.play_area[play_area_idx] = Card::dummy_card();
+
+                let hand_row = get_hand_row(state);
+                let (to_x, to_y) = hand_row.get_slot_position(original_hand_idx);
+
+                // Set up AnimatedCard for spring-back animation to the original hand slot
+                state.animated_card = Some(AnimatedCard {
+                    card: selected.clone(),
+                    pos: (from_x as f32, from_y as f32),
+                    velocity: (0.0, 0.0),
+                    origin_row: AnimatedCardOrigin::PlayArea,
+                    origin_row_index: play_area_idx,
+                    origin_pos: (from_x as f32, from_y as f32),
+                    target_row: AnimatedCardOrigin::Hand,
+                    target_row_index: original_hand_idx,
+                    target_pos: (to_x as f32, to_y as f32),
+                    dragging: false,
+                    animating: true,
+                });
+                highlight_selected_card_tiles(state);
+            }
         }
     }
-}
-
-pub fn update_state_with_card(state: &mut GameState, card_index: usize, card: Option<&Card>) {
-    if let Some(card) = card {
-        state.selected_card = Some(card.clone());
-        state.play_area[card_index] = card.clone();
-    } else {
-        state.selected_card = None;
-        state.play_area[card_index] = Card::dummy_card();
-    }
-    highlight_selected_card_tiles(state);
 }
 
 pub fn confirm_card(state: &mut GameState) {
     if let Some(selected_card) = &state.selected_card {
         send_confirm_card(selected_card);
         state.selected_card = None;
-        // Clear tile highlight
-        crate::game::map::tile::clear_highlights(&mut state.tiles);
+        clear_highlights(&mut state.tiles);
     }
 }

@@ -19,12 +19,8 @@ pub enum ServerToClient {
         players: Vec<Player>,
         current_turn: Option<CurrentTurn>,
     },
-    CardSelected {
-        card_index: usize,
-        card: Card,
-        player_id: String,
-    },
-    CardCanceled {
+
+    CardCancelled {
         card_index: usize,
         card: Card,
         player_id: String,
@@ -35,7 +31,7 @@ pub enum ServerToClient {
     },
     TileRotated {
         tile_index: usize,
-        clockwise: bool,
+        tile: Tile,
         player_id: String,
     },
     PlayerMoved {

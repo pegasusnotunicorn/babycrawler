@@ -1,6 +1,6 @@
 use crate::game::constants::MAP_SIZE;
 use crate::game::map::Tile;
-use crate::game::animation::start_tile_rotation_animation;
+use crate::game::animation::{ start_tile_rotation_animation, start_player_movement_animation };
 use crate::GameState;
 use crate::network::send::{ send_tile_rotation, send_move, send_swap_tiles };
 
@@ -27,8 +27,13 @@ impl CardEffect {
     }
 
     fn apply_move_one_tile(&self, state: &mut GameState, tile_index: usize) {
+        // Get board layout first to avoid borrowing conflicts
+        let (_, _, tile_size, offset_x, offset_y) = state.get_board_layout(false);
+
         let player = state.get_turn_player().unwrap();
         let (px, py) = player.position;
+        let current_position = player.position;
+        let user_id = state.user.clone();
 
         let current_index = py * MAP_SIZE + px;
 
@@ -40,10 +45,28 @@ impl CardEffect {
             return;
         }
 
+        // Check if player is already moving
+        if let Some(animated_player) = &state.animated_player {
+            if animated_player.animating {
+                return; // Don't send move if already moving
+            }
+        }
+
         // Calculate new position from tile index
         let new_x = tile_index % MAP_SIZE;
         let new_y = tile_index / MAP_SIZE;
         let new_position = (new_x, new_y);
+
+        // Start local player movement animation immediately
+        start_player_movement_animation(
+            state,
+            &user_id,
+            current_position,
+            new_position,
+            tile_size,
+            offset_x,
+            offset_y
+        );
 
         send_move(new_position, false);
     }
@@ -52,9 +75,9 @@ impl CardEffect {
         let tile = &mut state.tiles[tile_index];
         if tile.is_highlighted {
             if tile.rotation_anim.is_none() {
-                send_tile_rotation(tile_index, true);
+                send_tile_rotation(tile_index);
             }
-            start_tile_rotation_animation(state, tile_index, true, 0.25);
+            start_tile_rotation_animation(state, tile_index, None, 0.25);
         }
     }
 
@@ -67,7 +90,6 @@ impl CardEffect {
         // If this tile is already selected, deselect it
         if let Some(pos) = state.swap_tiles_selected.iter().position(|&i| i == tile_index) {
             state.swap_tiles_selected.remove(pos);
-            state.tiles[tile_index].is_highlighted = false;
             return;
         }
 
@@ -91,7 +113,7 @@ impl CardEffect {
             let orig = tile.original_rotation as i32;
             let diff = (4 + orig - current) % 4;
             if diff > 0 {
-                tile.rotate_clockwise(diff as usize);
+                tile.rotate_entrances(orig as u8);
             }
             tile.rotation_anim = None;
         }

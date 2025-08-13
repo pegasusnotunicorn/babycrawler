@@ -55,6 +55,7 @@ impl CardRow {
                     name: String::new(),
                     effect: CardEffect::Dummy,
                     color: outline_color,
+                    hand_index: None,
                 };
                 dummy.draw(
                     x,

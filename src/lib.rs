@@ -4,7 +4,7 @@ mod game;
 mod scene;
 mod network;
 
-use crate::game::map::draw_board;
+use crate::game::map::{ draw_board, clear_highlights };
 use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR, GAME_CHANNEL };
 use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
@@ -15,7 +15,15 @@ use crate::game::debug::draw_debug;
 use crate::game::cards::{ draw_play_area, draw_hand };
 use crate::game::cards::card::Card;
 use crate::game::cards::play_area::fill_with_dummies;
-use crate::network::receive::*;
+use crate::network::receive::{
+    receive_connected_users,
+    receive_board_state,
+    receive_card_cancelled,
+    receive_card_confirmed,
+    receive_tile_rotation,
+    receive_player_moved,
+    receive_tiles_swapped,
+};
 
 use turbo::{ os, gamepad, bounds, * };
 use scene::Scene;
@@ -129,6 +137,17 @@ impl GameState {
 
     // #endregion
 
+    /// Starts a new turn - client waits for server to provide updated state
+    pub fn start_new_turn(&mut self) {
+        self.selected_card = None;
+        self.swap_tiles_selected.clear();
+        clear_highlights(&mut self.tiles);
+        self.animated_tiles.clear();
+        self.pending_swaps.clear();
+        self.play_area.clear();
+        fill_with_dummies(&mut self.play_area, HAND_SIZE);
+    }
+
     pub fn update(&mut self) {
         clear(GAME_BG_COLOR);
         self.frame += 1;
@@ -167,19 +186,16 @@ impl GameState {
                         receive_board_state(self, tiles, players, current_turn);
                     }
 
-                    ServerToClient::CardSelected { card_index, card, player_id } => {
-                        receive_card_selection(self, &card_index, &card, &player_id);
+                    ServerToClient::CardCancelled { card_index, card, player_id } => {
+                        receive_card_cancelled(self, &card_index, &card, &player_id);
                     }
 
-                    ServerToClient::CardCanceled { card_index, card, player_id } => {
-                        receive_card_cancel(self, &card_index, &card, &player_id);
-                    }
                     ServerToClient::CardConfirmed { card, player_id } => {
                         receive_card_confirmed(self, &card, &player_id);
                     }
 
-                    ServerToClient::TileRotated { tile_index, clockwise, player_id } => {
-                        receive_tile_rotation(self, &tile_index, &clockwise, &player_id);
+                    ServerToClient::TileRotated { tile_index, tile, player_id } => {
+                        receive_tile_rotation(self, &tile_index, &tile, &player_id);
                     }
 
                     ServerToClient::PlayerMoved { player_id, new_position, is_canceled } => {
