@@ -136,3 +136,26 @@ impl os::server::channel::ChannelHandler for GameChannel {
         Ok(())
     }
 }
+
+impl GameChannel {
+    /// Get the user ID for a given PlayerId enum
+    pub fn get_user_id(&self, player_id: &PlayerId) -> Option<&String> {
+        match player_id {
+            PlayerId::Player1 => self.players.get(0),
+            PlayerId::Player2 => self.players.get(1),
+        }
+    }
+
+    /// Get the PlayerId enum for a given user ID
+    pub fn get_player_id(&self, user_id: &str) -> Option<PlayerId> {
+        if let Some(index) = self.players.iter().position(|p| p == user_id) {
+            match index {
+                0 => Some(PlayerId::Player1),
+                1 => Some(PlayerId::Player2),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}

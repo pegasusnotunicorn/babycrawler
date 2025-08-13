@@ -10,6 +10,7 @@ use crate::server::broadcast::{
     broadcast_tiles_swapped,
     broadcast_fireball_shot,
     broadcast_fireball_hit_result,
+    broadcast_game_over,
 };
 use crate::game::cards::card::Card;
 use crate::game::constants::{ HAND_SIZE, FIREBALL_DAMAGE };
@@ -344,52 +345,72 @@ pub fn handle_fireball_hit(
 
     // Convert tile index to position coordinates
     let from_position = (from_tile_index % 5, from_tile_index / 5);
-
-    // Calculate where the fireball would hit based on direction and starting position
     let hit_position = calculate_fireball_hit_position(from_position, direction);
 
-    // Check if we hit a player
-    let mut target_player_id = None;
-    let mut damage_dealt = 0;
-    let mut player_index_to_damage = None;
+    // Find the target player at the hit position
+    let (target_player_index, target_player) = match
+        channel.board_players
+            .iter()
+            .enumerate()
+            .find(|(_, player)| player.position == hit_position)
+    {
+        Some((index, player)) => (index, player),
+        None => {
+            log!("[GameChannel] No player at hit position {:?}, no damage dealt", hit_position);
+            return;
+        }
+    };
 
-    // First pass: find the target player
-    for (player_index, player) in channel.board_players.iter().enumerate() {
-        if player.position == hit_position {
-            // Convert PlayerId enum to actual user ID
-            let actual_user_id = match player.id {
-                PlayerId::Player1 => channel.players.get(0).cloned(),
-                PlayerId::Player2 => channel.players.get(1).cloned(),
-            };
+    // Convert PlayerId enum to actual user ID
+    let target_user_id = match channel.get_user_id(&target_player.id) {
+        Some(id) => id.clone(),
+        None => {
+            log!("[GameChannel] Could not find user ID for player {:?}", target_player.id);
+            return;
+        }
+    };
 
-            if let Some(user_id) = actual_user_id {
-                if user_id != shooter_id {
-                    target_player_id = Some(user_id);
-                    damage_dealt = FIREBALL_DAMAGE;
-                    player_index_to_damage = Some(player_index);
-                    break;
-                }
-            }
+    // Don't damage the shooter
+    if target_user_id == shooter_id {
+        log!("[GameChannel] Fireball hit shooter, no damage dealt");
+        return;
+    }
+
+    // Apply damage
+    let damage_dealt = FIREBALL_DAMAGE;
+    let player_id = target_player.id.clone(); // Clone the ID before mutable borrow
+
+    if let Some(player_mut) = channel.board_players.get_mut(target_player_index) {
+        player_mut.take_damage(damage_dealt);
+        log!("[GameChannel] Player {} took {} damage from fireball", player_mut.id, damage_dealt);
+
+        // Check for game over
+        if player_mut.health <= 0 {
+            handle_player_death(channel, player_id);
         }
     }
 
-    // Second pass: apply damage if we found a player
-    if let Some(player_index) = player_index_to_damage {
-        if let Some(player_mut) = channel.board_players.get_mut(player_index) {
-            player_mut.take_damage(damage_dealt);
-            log!(
-                "[GameChannel] Player {} took {} damage from fireball",
-                player_mut.id,
-                damage_dealt
-            );
-        }
-    }
-
-    if let Some(target_player_id) = target_player_id {
-        broadcast_fireball_hit_result(shooter_id, &target_player_id, &damage_dealt);
-    }
+    // Broadcast the hit result
+    broadcast_fireball_hit_result(shooter_id, &target_user_id, &damage_dealt);
 }
 
+/// Handle player death and determine winner
+fn handle_player_death(channel: &mut GameChannel, dead_player_id: PlayerId) {
+    log!("[GameChannel] Player {} has died! Game over!", dead_player_id);
+
+    // Get the winner and loser user IDs
+    let winner_user_id = match dead_player_id {
+        PlayerId::Player1 => channel.get_user_id(&PlayerId::Player2),
+        PlayerId::Player2 => channel.get_user_id(&PlayerId::Player1),
+    };
+
+    let loser_user_id = channel.get_user_id(&dead_player_id);
+
+    if let (Some(winner), Some(loser)) = (winner_user_id, loser_user_id) {
+        log!("[GameChannel] Player {} wins the game!", winner);
+        broadcast_game_over(winner, loser);
+    }
+}
 /// Calculate where a fireball would hit based on starting position and direction
 fn calculate_fireball_hit_position(
     from_position: (usize, usize),

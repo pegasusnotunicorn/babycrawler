@@ -243,4 +243,22 @@ pub fn receive_fireball_hit_result(
     }
 
     game_state.fireballs.clear();
+    game_state.animated_fireballs.clear();
+}
+
+pub fn receive_game_over(game_state: &mut GameState, winner_id: &str, loser_id: &str) {
+    log!("🏆 [RECEIVE] Game Over! Winner: {}, Loser: {}", winner_id, loser_id);
+
+    // TODO: Handle game over state
+    // - Show winner/loser screen
+    // - Disable further game actions
+    // - Option to restart or return to lobby
+
+    if game_state.user == *winner_id {
+        log!("🎉 You won the game!");
+    } else if game_state.user == *loser_id {
+        log!("💀 You lost the game!");
+    } else {
+        log!("👀 Game ended between {} and {}", winner_id, loser_id);
+    }
 }

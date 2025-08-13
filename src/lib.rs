@@ -22,8 +22,8 @@ use crate::game::cards::{ draw_play_area, draw_hand };
 use crate::game::cards::card::Card;
 use crate::game::cards::play_area::fill_with_dummies;
 use crate::network::receive::{
-    receive_connected_users,
     receive_board_state,
+    receive_connected_users,
     receive_card_cancelled,
     receive_card_confirmed,
     receive_tile_rotation,
@@ -31,6 +31,7 @@ use crate::network::receive::{
     receive_tiles_swapped,
     receive_fireball_shot,
     receive_fireball_hit_result,
+    receive_game_over,
 };
 
 use turbo::{ os, gamepad, bounds, * };
@@ -225,6 +226,9 @@ impl GameState {
                     }
                     ServerToClient::FireballHit { player_id, target_id, damage_dealt } => {
                         receive_fireball_hit_result(self, &player_id, &target_id, &damage_dealt);
+                    }
+                    ServerToClient::GameOver { winner_id, loser_id } => {
+                        receive_game_over(self, &winner_id, &loser_id);
                     }
                 }
             }

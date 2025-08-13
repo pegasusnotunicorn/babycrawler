@@ -77,15 +77,13 @@ pub enum ServerToClient {
         fireball: crate::game::map::fireball::Fireball,
         player_id: String,
     },
-    FireballHit {
-        fireball_id: u32,
-        target_position: (usize, usize),
-        damage_dealt: u32,
-    },
     FireballHitResult {
         shooter_id: String,
         target_player_id: Option<String>,
         damage_dealt: u32,
-        hit_position: (usize, usize),
+    },
+    GameOver {
+        winner_id: String,
+        loser_id: String,
     },
 }

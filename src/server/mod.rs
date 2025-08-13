@@ -52,4 +52,8 @@ pub enum ServerToClient {
         target_id: String,
         damage_dealt: u32,
     },
+    GameOver {
+        winner_id: String,
+        loser_id: String,
+    },
 }

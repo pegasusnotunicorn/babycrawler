@@ -126,3 +126,10 @@ pub fn broadcast_fireball_hit_result(shooter_id: &str, target_player_id: &str, d
         damage_dealt: *damage_dealt,
     });
 }
+
+pub fn broadcast_game_over(winner_id: &str, loser_id: &str) {
+    broadcast_generic(ServerToClient::GameOver {
+        winner_id: winner_id.to_string(),
+        loser_id: loser_id.to_string(),
+    });
+}
