@@ -47,7 +47,7 @@ impl Card {
     pub fn rotate_card() -> Self {
         Self {
             id: random::u32(),
-            name: "Rotate".into(),
+            name: "TURN".into(),
             effect: CardEffect::RotateCard,
             color: 0x3366ccff, // Blue
             hand_index: None,
@@ -57,9 +57,9 @@ impl Card {
     pub fn move_card() -> Self {
         Self {
             id: random::u32(),
-            name: "Move".into(),
+            name: "MOVE".into(),
             effect: CardEffect::MoveOneTile,
-            color: 0x33cc33ff, // Green
+            color: 0x00aa00ff, // Dark green
             hand_index: None,
         }
     }
@@ -67,9 +67,9 @@ impl Card {
     pub fn swap_card() -> Self {
         Self {
             id: random::u32(),
-            name: "Swap".into(),
+            name: "SWAP".into(),
             effect: CardEffect::SwapCard,
-            color: 0xffa500ff, // Orange
+            color: 0xff8800ff, // Dark orange
             hand_index: None,
         }
     }
@@ -185,8 +185,8 @@ impl Card {
         if !visual_state.contains(CardVisualState::DUMMY) {
             let border_width = GAME_PADDING;
             let inset = border_width / 2;
-            let label_x = x + inset + 4;
-            let label_y = y + inset + 4;
+            let label_x = x + inset + GAME_PADDING * 2 - 8;
+            let label_y = y + inset + GAME_PADDING;
             text!(&self.name, x = label_x, y = label_y, font = "large", color = 0x000000ff);
         }
     }
