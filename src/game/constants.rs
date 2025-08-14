@@ -3,7 +3,7 @@ pub const DEBUG_MODE: bool = false;
 pub const GAME_PADDING: u32 = 16;
 
 pub const MAP_SIZE: usize = 5;
-pub const HAND_SIZE: usize = 3;
+pub const HAND_SIZE: usize = 4;
 
 // UI
 pub const FONT_HEIGHT: u32 = 12;

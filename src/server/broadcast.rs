@@ -24,7 +24,6 @@ pub fn broadcast_turn(
             player_id: user_id.clone(),
             selected_card: None,
             selected_card_index: 0,
-            confirmed_cards_count: 0,
         });
         broadcast_board_state(board_tiles, board_players, current_turn);
     }

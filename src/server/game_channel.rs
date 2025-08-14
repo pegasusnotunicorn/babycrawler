@@ -22,7 +22,6 @@ pub struct CurrentTurn {
     pub player_id: String,
     pub selected_card: Option<Card>,
     pub selected_card_index: usize,
-    pub confirmed_cards_count: usize,
 }
 
 impl os::server::channel::ChannelHandler for GameChannel {

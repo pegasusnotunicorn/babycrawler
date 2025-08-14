@@ -62,7 +62,6 @@ pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
             player_id: next_user_id.clone(),
             selected_card: None,
             selected_card_index: 0,
-            confirmed_cards_count: 0,
         });
 
         broadcast_board_state(&channel.board_tiles, &channel.board_players, &channel.current_turn);
@@ -86,22 +85,10 @@ pub fn handle_select_card(channel: &mut GameChannel, user_id: &str, hand_index: 
         return;
     };
 
-    // Preserve the existing confirmed_cards_count if this is the same player's turn
-    let confirmed_count = if let Some(existing_turn) = &channel.current_turn {
-        if existing_turn.player_id == user_id {
-            existing_turn.confirmed_cards_count
-        } else {
-            0 // New player's turn, reset counter
-        }
-    } else {
-        0 // No existing turn, start fresh
-    };
-
     channel.current_turn = Some(CurrentTurn {
         player_id: user_id.to_string(),
         selected_card: Some(selected_card.clone()),
         selected_card_index: hand_index,
-        confirmed_cards_count: confirmed_count,
     });
 }
 
@@ -175,7 +162,6 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
         player_id: user_id.to_string(),
         selected_card: None,
         selected_card_index: hand_index,
-        confirmed_cards_count: 0,
     });
 
     broadcast_card_cancelled(&card, user_id);
@@ -221,16 +207,10 @@ pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card)
 
     broadcast_card_confirmed(&card, user_id);
 
-    // Clear the current turn's selected card and increment confirmed count
+    // Clear the current turn's selected card
     if let Some(turn) = &mut channel.current_turn {
         if turn.player_id == user_id {
             turn.selected_card = None;
-            turn.confirmed_cards_count += 1;
-
-            // Check if this was last card in their hand
-            if turn.confirmed_cards_count >= HAND_SIZE {
-                handle_end_turn(channel, user_id);
-            }
         }
     }
 }
