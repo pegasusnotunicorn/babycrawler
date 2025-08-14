@@ -13,7 +13,7 @@ use crate::server::broadcast::{
     broadcast_game_over,
 };
 use crate::game::cards::card::Card;
-use crate::game::constants::{ HAND_SIZE, FIREBALL_DAMAGE };
+use crate::game::constants::{ DEBUG_MODE, HAND_SIZE, FIREBALL_DAMAGE };
 use crate::game::map::player::Player;
 use crate::game::map::player::PlayerId;
 
@@ -44,8 +44,15 @@ pub fn give_player_new_hand(channel: &mut GameChannel, user_id: &str) {
     }
 }
 
-/// Helper function to start a new turn
-pub fn handle_new_turn(channel: &mut GameChannel, user_id: &str) {
+pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
+    if let Some(turn) = &channel.current_turn {
+        if turn.player_id == user_id && turn.selected_card.is_some() {
+            if let Some(selected_card) = &turn.selected_card {
+                handle_confirm_card(channel, user_id, selected_card.clone());
+            }
+        }
+    }
+
     give_player_new_hand(channel, user_id);
 
     channel.current_turn_index = (channel.current_turn_index + 1) % channel.players.len();
@@ -222,7 +229,7 @@ pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card)
 
             // Check if this was last card in their hand
             if turn.confirmed_cards_count >= HAND_SIZE {
-                handle_new_turn(channel, user_id);
+                handle_end_turn(channel, user_id);
             }
         }
     }
@@ -297,7 +304,10 @@ pub fn handle_fireball_shot(
     let player_pos = player.position;
 
     log!("[GameChannel] Fireball created at {:?} in direction {:?}", player_pos, direction);
-    handle_confirm_card(channel, user_id, Card::fire_card());
+    // if not debug, confirm the card
+    if !DEBUG_MODE {
+        handle_confirm_card(channel, user_id, Card::fire_card());
+    }
     broadcast_fireball_shot(user_id, target_tile, &direction);
 }
 

@@ -104,7 +104,7 @@ impl os::server::channel::ChannelHandler for GameChannel {
     fn on_data(&mut self, user_id: &str, data: Self::Recv) -> Result<(), std::io::Error> {
         match data {
             ClientToServer::EndTurn => {
-                handle_new_turn(self, user_id);
+                handle_end_turn(self, user_id);
             }
             ClientToServer::SelectCard { hand_index } => {
                 handle_select_card(self, user_id, hand_index);

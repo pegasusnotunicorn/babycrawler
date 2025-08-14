@@ -5,7 +5,14 @@ mod scene;
 mod network;
 
 use crate::game::map::{ draw_board, clear_highlights };
-use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR, GAME_CHANNEL };
+use crate::game::constants::{
+    DEBUG_MODE,
+    GAME_PADDING,
+    HAND_SIZE,
+    MAP_SIZE,
+    GAME_BG_COLOR,
+    GAME_CHANNEL,
+};
 use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
@@ -78,10 +85,8 @@ pub struct GameState {
 
 impl GameState {
     pub fn new() -> Self {
-        let debug = false; // Hardcoded for development
-
         Self {
-            debug,
+            debug: DEBUG_MODE,
             frame: 0,
             tiles: Vec::new(),
             players: Vec::new(),

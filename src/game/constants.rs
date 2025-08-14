@@ -1,3 +1,5 @@
+pub const DEBUG_MODE: bool = false;
+
 pub const GAME_PADDING: u32 = 16;
 
 pub const MAP_SIZE: usize = 5;
