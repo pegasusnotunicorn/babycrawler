@@ -26,9 +26,9 @@ pub const FLOOR_COLOR: u32 = 0x000000ff; // Black
 // card colors
 pub const CARD_DUMMY_COLOR: u32 = 0xffffff80;
 pub const CARD_FIRE_COLOR: u32 = 0x8b0000ff;
-pub const CARD_SWAP_COLOR: u32 = 0xff8800ff;
-pub const CARD_MOVE_COLOR: u32 = 0x00aa00ff;
-pub const CARD_ROTATE_COLOR: u32 = 0xb804b8ff;
+pub const CARD_SWAP_COLOR: u32 = 0xb804b8ff;
+pub const CARD_MOVE_COLOR: u32 = 0x0000aaff;
+pub const CARD_ROTATE_COLOR: u32 = 0x00aa00ff;
 pub const CARD_HOVER_OUTLINE_COLOR: u32 = 0xffffffaa;
 pub const CARD_BUTTON_A_COLOR: u32 = 0x118811ff;
 pub const CARD_BUTTON_B_COLOR: u32 = 0xff2222ff;

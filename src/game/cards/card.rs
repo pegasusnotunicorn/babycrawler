@@ -32,6 +32,7 @@ pub struct Card {
     pub hand_index: Option<usize>, // Track which hand slot this card came from
     pub hide_confirm_button: bool,
     pub tooltip: String,
+    pub sprite_name: String, // Name of the sprite file (without extension)
 }
 
 const CARD_CONSTRUCTORS: &[fn() -> Card] = &[
@@ -68,6 +69,7 @@ impl Card {
             hand_index: None,
             hide_confirm_button: false,
             tooltip: "Rotate any adjacent rooms.".to_string(),
+            sprite_name: "rotate".into(),
         }
     }
 
@@ -80,6 +82,7 @@ impl Card {
             hand_index: None,
             hide_confirm_button: false,
             tooltip: "Move to any connected room.".to_string(),
+            sprite_name: "move".into(),
         }
     }
 
@@ -92,6 +95,7 @@ impl Card {
             hand_index: None,
             hide_confirm_button: false,
             tooltip: "Swap any two adjacent rooms.".to_string(),
+            sprite_name: "swap".into(),
         }
     }
 
@@ -104,6 +108,7 @@ impl Card {
             hand_index: None,
             hide_confirm_button: true,
             tooltip: "Fire a fireball in a line.".to_string(),
+            sprite_name: "fire".into(),
         }
     }
 
@@ -116,6 +121,7 @@ impl Card {
             hand_index: None,
             hide_confirm_button: false,
             tooltip: "".to_string(),
+            sprite_name: "".to_string(),
         }
     }
 
@@ -174,7 +180,7 @@ impl Card {
         frame: Option<f64>
     ) {
         let border_radius = GAME_PADDING / 2;
-        let border_width = GAME_PADDING;
+        let border_width = 2;
         let inset = border_width / 2;
         let inner_x = x + inset;
         let inner_y = y + inset;
@@ -194,28 +200,31 @@ impl Card {
             rect!(x = x, y = y, w = w, h = h, color = color, border_radius = border_radius);
         }
 
-        // Card fill
-        let fill_color = if visual_state.contains(CardVisualState::DUMMY) {
-            GAME_BG_COLOR
+        // Draw card sprite or fallback to colored rectangle
+        if !visual_state.contains(CardVisualState::DUMMY) && !self.sprite_name.is_empty() {
+            sprite!(
+                &self.sprite_name,
+                x = inner_x as i32,
+                y = inner_y as i32,
+                w = inner_w,
+                h = inner_h,
+                cover = true
+            );
         } else {
-            self.color
-        };
-        rect!(
-            x = inner_x,
-            y = inner_y,
-            w = inner_w,
-            h = inner_h,
-            color = fill_color,
-            border_radius = border_radius
-        );
-
-        // Draw label if not dummy
-        if !visual_state.contains(CardVisualState::DUMMY) {
-            let border_width = GAME_PADDING;
-            let inset = border_width / 2;
-            let label_x = x + inset + GAME_PADDING * 2 - 8;
-            let label_y = y + inset + GAME_PADDING;
-            text!(&self.name, x = label_x, y = label_y, font = "large", color = 0x000000ff);
+            // Fallback to colored rectangle for dummy cards or missing sprites
+            let fill_color = if visual_state.contains(CardVisualState::DUMMY) {
+                GAME_BG_COLOR
+            } else {
+                self.color
+            };
+            rect!(
+                x = inner_x,
+                y = inner_y,
+                w = inner_w,
+                h = inner_h,
+                color = fill_color,
+                border_radius = border_radius
+            );
         }
     }
 }
