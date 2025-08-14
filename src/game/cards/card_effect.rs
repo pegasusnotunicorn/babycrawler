@@ -8,7 +8,8 @@ use crate::game::animation::{
 use crate::GameState;
 use crate::network::send::{ send_tile_rotation, send_move, send_swap_tiles, send_fireball_shot };
 use crate::game::map::fireball::Fireball;
-use crate::game::map::tile::clear_highlights;
+use crate::game::map::clear_highlights;
+use crate::game::animation::animate_tile_to_index;
 use turbo::*;
 use serde::{ Serialize, Deserialize };
 use turbo::borsh::{ BorshDeserialize, BorshSerialize };
@@ -173,11 +174,9 @@ impl CardEffect {
     // This function now uses the deferred approach - it collects tiles that need to move
     // and adds them to pending_swaps, then starts animations for visual movement
     pub fn revert_tile_positions(state: &mut GameState) {
-        // Clear swap selection and highlights
         state.swap_tiles_selected.clear();
-        crate::game::map::clear_highlights(&mut state.tiles);
+        clear_highlights(&mut state.tiles);
 
-        // For tile reverts, use the same deferred approach as swaps
         // First collect all tiles that need to move
         let mut tiles_to_animate: Vec<(usize, usize)> = Vec::new();
         for (current_index, tile) in state.tiles.iter().enumerate() {
@@ -190,7 +189,7 @@ impl CardEffect {
         // Then add them to pending swaps and start animations
         for (current_index, target_index) in tiles_to_animate {
             state.pending_swaps.push((current_index, target_index));
-            crate::game::animation::animate_tile_to_index(state, current_index, target_index);
+            animate_tile_to_index(state, current_index, target_index);
         }
     }
 }

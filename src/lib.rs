@@ -78,7 +78,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn new() -> Self {
-        let debug = false; // Hardcoded for development
+        let debug = true; // Hardcoded for development
 
         Self {
             debug,

@@ -46,7 +46,6 @@ impl os::server::channel::ChannelHandler for GameChannel {
     }
 
     fn on_connect(&mut self, user_id: &str) -> Result<(), std::io::Error> {
-        log!("[GameChannel] on_connect called for user_id: {user_id}");
         if !self.players.contains(&user_id.to_string()) {
             self.players.push(user_id.to_string());
         }
@@ -103,7 +102,6 @@ impl os::server::channel::ChannelHandler for GameChannel {
     }
 
     fn on_data(&mut self, user_id: &str, data: Self::Recv) -> Result<(), std::io::Error> {
-        log!("[GameChannel] on_data called for user_id: {user_id}");
         match data {
             ClientToServer::EndTurn => {
                 handle_new_turn(self, user_id);

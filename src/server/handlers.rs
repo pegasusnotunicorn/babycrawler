@@ -46,8 +46,6 @@ pub fn give_player_new_hand(channel: &mut GameChannel, user_id: &str) {
 
 /// Helper function to start a new turn
 pub fn handle_new_turn(channel: &mut GameChannel, user_id: &str) {
-    log!("[GameChannel] Player {user_id} has ended their turn");
-
     give_player_new_hand(channel, user_id);
 
     channel.current_turn_index = (channel.current_turn_index + 1) % channel.players.len();
@@ -65,8 +63,6 @@ pub fn handle_new_turn(channel: &mut GameChannel, user_id: &str) {
 }
 
 pub fn handle_select_card(channel: &mut GameChannel, user_id: &str, hand_index: usize) {
-    log!("[GameChannel] SelectCard received from {user_id}: hand_index={}", hand_index);
-
     // Get the player and their selected card
     let (_player, selected_card) = if let Some(player) = get_player_mut(channel, user_id) {
         if hand_index < player.hand.len() {
@@ -121,26 +117,28 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
         CardEffect::RotateCard => {
             // Revert all tiles to their original rotation in the server's board state
             for tile in channel.board_tiles.iter_mut() {
-                tile.current_rotation = tile.original_rotation;
                 tile.rotate_entrances(tile.original_rotation);
+                tile.current_rotation = tile.original_rotation;
             }
             log!("[GameChannel] Reverted all tiles to original rotation for RotateCard cancel");
         }
         CardEffect::SwapCard => {
-            // Revert all tiles to their original positions in the server's board state
-            // First, collect tiles that need to be moved back
-            let mut tiles_to_revert: Vec<(usize, usize)> = Vec::new();
-            for (current_index, tile) in channel.board_tiles.iter().enumerate() {
-                let target_index = tile.original_location;
-                if current_index != target_index {
-                    tiles_to_revert.push((current_index, target_index));
-                }
-            }
+            // Revert all tiles to their original positions by rebuilding the array
+            let mut tiles_with_positions: Vec<_> = channel.board_tiles
+                .iter()
+                .enumerate()
+                .map(|(_current_index, tile)| (tile.original_location, tile.clone()))
+                .collect();
 
-            // Perform the reverts by swapping tiles back to their original positions
-            for (current_index, target_index) in tiles_to_revert {
-                channel.board_tiles.swap(current_index, target_index);
-            }
+            // Sort by original_location to get tiles back in order
+            tiles_with_positions.sort_by_key(|(original_pos, _)| *original_pos);
+
+            // Extract just the tiles in the correct order
+            channel.board_tiles = tiles_with_positions
+                .into_iter()
+                .map(|(_, tile)| tile)
+                .collect();
+
             log!("[GameChannel] Reverted all tiles to original positions for SwapCard cancel");
         }
         CardEffect::MoveOneTile => {
@@ -153,14 +151,8 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
                 );
             }
         }
-        CardEffect::FireCard => {
-            // TODO: Implement fire card cancel logic
-            // For now, no special handling needed
-            log!("[GameChannel] FireCard cancelled - no special handling needed");
-        }
         _ => {
             // For other card types, no special handling needed
-            // Just update the turn state below
         }
     }
 
@@ -180,11 +172,10 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
     });
 
     broadcast_card_cancelled(&card, user_id);
+    broadcast_board_state(&channel.board_tiles, &channel.board_players, &channel.current_turn);
 }
 
 pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card) {
-    log!("[GameChannel] ConfirmCard received from {user_id}: card={:?}", card);
-
     match card.effect {
         CardEffect::MoveOneTile => {
             if let Some(player) = get_player_mut(channel, user_id) {
@@ -238,8 +229,6 @@ pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card)
 }
 
 pub fn handle_rotate_tile(channel: &mut GameChannel, user_id: &str, tile_index: usize) {
-    log!("[GameChannel] RotateTile received from {user_id}: index={}", tile_index);
-
     if let Some(tile) = channel.board_tiles.get_mut(tile_index) {
         let new_rotation = (tile.current_rotation + 1) % 4;
         tile.rotate_entrances(new_rotation);
@@ -256,12 +245,6 @@ pub fn handle_move_player(
     new_position: (usize, usize),
     is_canceled: bool
 ) {
-    log!(
-        "[GameChannel] MovePlayer received from {user_id}: new_position={:?}, is_canceled={}",
-        new_position,
-        is_canceled
-    );
-
     if let Some(player) = get_player_mut(channel, user_id) {
         player.position = new_position;
         log!("[GameChannel] Updated player {:?} position to {:?}", player.id, new_position);
@@ -278,8 +261,6 @@ pub fn handle_swap_tiles(
     tile_index_1: usize,
     tile_index_2: usize
 ) {
-    log!("[GameChannel] SwapTiles received from {user_id}: {} <-> {}", tile_index_1, tile_index_2);
-
     // Validate that the tiles are within bounds
     if tile_index_1 >= channel.board_tiles.len() || tile_index_2 >= channel.board_tiles.len() {
         log!(
@@ -300,12 +281,6 @@ pub fn handle_fireball_shot(
     target_tile: usize,
     direction: crate::game::map::tile::Direction
 ) {
-    log!(
-        "[GameChannel] FireballShot received from {user_id}: target_tile={}, direction={:?}",
-        target_tile,
-        direction
-    );
-
     // Check if it's the user's turn
     if let Some(current_turn) = &channel.current_turn {
         if current_turn.player_id != user_id {
@@ -337,12 +312,6 @@ pub fn handle_fireball_hit(
     from_tile_index: usize,
     direction: crate::game::map::tile::Direction
 ) {
-    log!(
-        "[GameChannel] FireballHit received from {shooter_id}: from_tile_index={}, direction={:?}",
-        from_tile_index,
-        direction
-    );
-
     // Convert tile index to position coordinates
     let from_position = (from_tile_index % 5, from_tile_index / 5);
     let hit_position = calculate_fireball_hit_position(from_position, direction);
@@ -396,8 +365,6 @@ pub fn handle_fireball_hit(
 
 /// Handle player death and determine winner
 fn handle_player_death(channel: &mut GameChannel, dead_player_id: PlayerId) {
-    log!("[GameChannel] Player {} has died! Game over!", dead_player_id);
-
     // Get the winner and loser user IDs
     let winner_user_id = match dead_player_id {
         PlayerId::Player1 => channel.get_user_id(&PlayerId::Player2),
