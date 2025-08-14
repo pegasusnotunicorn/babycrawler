@@ -109,43 +109,39 @@ impl Player {
 
         circ!(d = diameter as u32, x = circle_x, y = circle_y, color = color);
 
-        // Draw health bar below the player
-        let health_bar_width = tile_size / 3;
-        let health_bar_height = 3;
-        let health_bar_x = center_x - health_bar_width / 2;
-        let health_bar_y = center_y + radius + 4; // Position below the player circle
+        // Draw hearts instead of health bar
+        let heart_size = 12;
+        let heart_spacing = 0;
+        let total_hearts_width = (heart_size + heart_spacing) * 3 - heart_spacing; // 3 hearts with spacing
+        let hearts_start_x = center_x - total_hearts_width / 2;
+        // position above the player circle
+        let hearts_y = center_y - radius - heart_size;
 
-        // Draw health bar background (dark gray)
-        rect!(
-            x = health_bar_x,
-            y = health_bar_y,
-            w = health_bar_width,
-            h = health_bar_height,
-            color = 0x444444ff,
-            border_radius = 1
-        );
+        // Draw all 3 heart positions (empty hearts for missing health)
+        for i in 0..3 {
+            let heart_x = hearts_start_x + (i as u32) * (heart_size + heart_spacing);
 
-        // Calculate health percentage and draw filled health bar
-        let health_percentage = (self.health as f32) / (PLAYER_HEALTH as f32);
-        let filled_width = ((health_bar_width as f32) * health_percentage) as u32;
-
-        if filled_width > 0 {
-            let health_color = if health_percentage > 0.5 {
-                0x00ff00ff // Green when health > 50%
-            } else if health_percentage > 0.25 {
-                0xffff00ff // Yellow when health 25-50%
+            if i < self.health {
+                // Draw filled heart sprite
+                sprite!(
+                    "heart",
+                    x = heart_x as i32,
+                    y = hearts_y as i32,
+                    w = heart_size,
+                    h = heart_size,
+                    cover = true
+                );
             } else {
-                0xff0000ff // Red when health < 25%
-            };
-
-            rect!(
-                x = health_bar_x,
-                y = health_bar_y,
-                w = filled_width,
-                h = health_bar_height,
-                color = health_color,
-                border_radius = 1
-            );
+                // Draw empty heart (gray outline)
+                sprite!(
+                    "heart_empty",
+                    x = heart_x as i32,
+                    y = hearts_y as i32,
+                    w = heart_size,
+                    h = heart_size,
+                    cover = true
+                );
+            }
         }
     }
 }

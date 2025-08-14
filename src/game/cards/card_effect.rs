@@ -150,9 +150,9 @@ impl CardEffect {
                 start_fireball_animation(state, fireball_id, player_pos, direction, tile_index);
                 send_fireball_shot(tile_index, direction);
 
-                // // Clear highlights and selected card
-                // state.selected_card = None;
-                // clear_highlights(&mut state.tiles);
+                // Clear highlights and selected card
+                state.selected_card = None;
+                clear_highlights(&mut state.tiles);
             }
         }
     }

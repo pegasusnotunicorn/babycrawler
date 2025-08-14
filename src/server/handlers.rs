@@ -297,7 +297,7 @@ pub fn handle_fireball_shot(
     let player_pos = player.position;
 
     log!("[GameChannel] Fireball created at {:?} in direction {:?}", player_pos, direction);
-    // handle_confirm_card(channel, user_id, Card::fire_card());
+    handle_confirm_card(channel, user_id, Card::fire_card());
     broadcast_fireball_shot(user_id, target_tile, &direction);
 }
 
