@@ -22,4 +22,7 @@ pub enum GameMode {
 pub enum Scene {
     Menu,
     Game,
+    GameOver {
+        winner_id: String,
+    },
 }

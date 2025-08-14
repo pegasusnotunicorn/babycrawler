@@ -145,17 +145,4 @@ impl GameChannel {
             PlayerId::Player2 => self.players.get(1),
         }
     }
-
-    /// Get the PlayerId enum for a given user ID
-    pub fn get_player_id(&self, user_id: &str) -> Option<PlayerId> {
-        if let Some(index) = self.players.iter().position(|p| p == user_id) {
-            match index {
-                0 => Some(PlayerId::Player1),
-                1 => Some(PlayerId::Player2),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    }
 }

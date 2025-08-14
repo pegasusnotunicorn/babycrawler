@@ -1,6 +1,6 @@
 use turbo::*;
 
-use crate::game::constants::{ GAME_PADDING, FONT_HEIGHT };
+use crate::game::constants::{ GAME_PADDING, FONT_HEIGHT, GAME_BG_COLOR };
 use crate::network::send::send_end_turn;
 
 const BUTTON_WIDTH: u32 = 100;
@@ -103,8 +103,12 @@ pub fn draw_text(text: &str, is_my_turn: bool) {
     draw_text_box(rect_x as f32, rect_y as f32, rect_w, rect_h, text, 0xffffffff, 0x222222ff);
 }
 
-pub fn draw_menu() {
-    let menu_items = ["Press SPACE to start"];
+pub fn draw_menu(game_over: bool) {
+    let menu_items = if game_over {
+        ["Press SPACE to return to menu"]
+    } else {
+        ["Press SPACE to start"]
+    };
     if let Some(item) = menu_items.first() {
         draw_text(item, false);
     }
@@ -121,4 +125,33 @@ pub fn draw_turn_label(is_my_turn: bool, _game_state: &crate::GameState) {
 /// Draws a waiting message if no player is connected.
 pub fn draw_waiting_for_players(_game_state: &crate::GameState) {
     draw_text("Waiting for players...", false);
+}
+
+/// Draws the game over screen with winner/loser information
+pub fn draw_game_over_screen(winner_id: &str, current_user_id: &str) {
+    draw_menu(true);
+    let canvas_bounds = bounds::screen();
+    let canvas_width = canvas_bounds.w();
+    let canvas_height = canvas_bounds.h();
+    let is_winner = current_user_id == winner_id;
+
+    // Draw main game over box using draw_text_box
+    let box_width = canvas_width - GAME_PADDING * 2;
+    let box_height = FONT_HEIGHT + GAME_PADDING;
+    let box_x = GAME_PADDING as f32;
+    let box_y = (canvas_height - box_height * 2 - GAME_PADDING * 2) as f32;
+
+    // Draw title
+    let title = if is_winner { "CONGRATS, YOU WON!" } else { "GAMEOVER, YOU LOST!" };
+    let fill_color = if is_winner { 0x118811ff } else { 0xff2222ff };
+
+    draw_text_box(
+        box_x,
+        box_y,
+        box_width,
+        box_height,
+        title,
+        0xffffffff, // White text
+        fill_color // Game background color
+    );
 }

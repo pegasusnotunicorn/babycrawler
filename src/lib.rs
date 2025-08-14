@@ -9,7 +9,12 @@ use crate::game::constants::{ GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_BG_COLOR, 
 use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
-use crate::game::ui::{ draw_turn_label, draw_waiting_for_players, draw_menu };
+use crate::game::ui::{
+    draw_turn_label,
+    draw_waiting_for_players,
+    draw_menu,
+    draw_game_over_screen,
+};
 use crate::game::animation::{
     update_animations,
     AnimatedCard,
@@ -73,7 +78,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn new() -> Self {
-        let debug = true; // Hardcoded for development
+        let debug = false; // Hardcoded for development
 
         Self {
             debug,
@@ -167,15 +172,19 @@ impl GameState {
         clear(GAME_BG_COLOR);
         self.frame += 1;
         update_animations(self);
-        match self.scene {
+        match &self.scene {
             Scene::Menu => self.update_menu(),
             Scene::Game => self.update_game(),
+            Scene::GameOver { winner_id } => {
+                let winner = winner_id.clone();
+                self.update_game_over(&winner);
+            }
         }
         draw_debug(self);
     }
 
     fn update_menu(&mut self) {
-        draw_menu();
+        draw_menu(false);
         if gamepad::get(0).start.just_pressed() {
             self.scene = Scene::Game;
             self.user = os::client::user_id().unwrap_or_else(|| "NO_ID".to_string());
@@ -241,14 +250,26 @@ impl GameState {
         }
     }
 
+    fn update_game_over(&mut self, winner_id: &str) {
+        // Draw the game over screen using our UI function
+        draw_game_over_screen(winner_id, &self.user);
+
+        // Allow players to return to menu
+        if gamepad::get(0).start.just_pressed() {
+            self.scene = Scene::Menu;
+            self.user_id_to_player_id.clear();
+            self.in_lobby.clear();
+        }
+    }
+
     fn draw_game(&self) {
         clear(GAME_BG_COLOR);
         let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) =
             self.get_board_layout(false);
-        draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
-        draw_play_area(self, self.frame as f64);
 
         if self.get_local_player().is_some() {
+            draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
+            draw_play_area(self, self.frame as f64);
             draw_hand(self, self.frame as f64);
             if self.current_turn.is_some() {
                 draw_turn_label(self.is_my_turn(), self);

@@ -13,6 +13,7 @@ use crate::GameState;
 use crate::game::map::clear_highlights;
 use crate::game::map::fireball::Fireball;
 use crate::game::map::tile::Tile;
+use crate::scene::Scene;
 
 pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
     log!("📨 [RECEIVE] Connected users: {:?}", users);
@@ -249,16 +250,7 @@ pub fn receive_fireball_hit_result(
 pub fn receive_game_over(game_state: &mut GameState, winner_id: &str, loser_id: &str) {
     log!("🏆 [RECEIVE] Game Over! Winner: {}, Loser: {}", winner_id, loser_id);
 
-    // TODO: Handle game over state
-    // - Show winner/loser screen
-    // - Disable further game actions
-    // - Option to restart or return to lobby
-
-    if game_state.user == *winner_id {
-        log!("🎉 You won the game!");
-    } else if game_state.user == *loser_id {
-        log!("💀 You lost the game!");
-    } else {
-        log!("👀 Game ended between {} and {}", winner_id, loser_id);
-    }
+    game_state.scene = Scene::GameOver {
+        winner_id: winner_id.to_string(),
+    };
 }

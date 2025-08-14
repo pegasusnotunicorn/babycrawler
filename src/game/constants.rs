@@ -34,5 +34,5 @@ pub const FLASH_SPEED: f64 = 0.1; // smaller = slower
 pub const GAME_CHANNEL: &str = "GLOBAL";
 
 // damage
-pub const PLAYER_HEALTH: u32 = 100;
+pub const PLAYER_HEALTH: u32 = 30;
 pub const FIREBALL_DAMAGE: u32 = 10;
