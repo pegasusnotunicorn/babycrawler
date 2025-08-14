@@ -14,6 +14,8 @@ use crate::game::map::clear_highlights;
 use crate::game::map::fireball::Fireball;
 use crate::game::map::tile::Tile;
 use crate::scene::Scene;
+use crate::game::constants::HAND_SIZE;
+use crate::game::cards::play_area::fill_with_dummies;
 
 pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
     log!("📨 [RECEIVE] Connected users: {:?}", users);
@@ -60,7 +62,7 @@ pub fn receive_board_state(
     // If turn changed to a different player, start a new turn
     if turn_changed {
         log!("📨 [RECEIVE] Turn changed, starting new turn");
-        game_state.start_new_turn();
+        game_state.reset_turn();
     }
 
     // Update game state
@@ -249,8 +251,5 @@ pub fn receive_fireball_hit_result(
 
 pub fn receive_game_over(game_state: &mut GameState, winner_id: &str, loser_id: &str) {
     log!("🏆 [RECEIVE] Game Over! Winner: {}, Loser: {}", winner_id, loser_id);
-
-    game_state.scene = Scene::GameOver {
-        winner_id: winner_id.to_string(),
-    };
+    game_state.game_over(winner_id);
 }

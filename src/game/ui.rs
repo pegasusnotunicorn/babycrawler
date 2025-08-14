@@ -1,6 +1,6 @@
 use turbo::*;
 
-use crate::game::constants::{ GAME_PADDING, FONT_HEIGHT, GAME_BG_COLOR };
+use crate::game::constants::{ GAME_PADDING, FONT_HEIGHT };
 use crate::network::send::send_end_turn;
 
 const BUTTON_WIDTH: u32 = 100;

@@ -155,8 +155,7 @@ impl GameState {
 
     // #endregion
 
-    /// Starts a new turn - client waits for server to provide updated state
-    pub fn start_new_turn(&mut self) {
+    pub fn reset_turn(&mut self) {
         self.selected_card = None;
         self.swap_tiles_selected.clear();
         clear_highlights(&mut self.tiles);
@@ -166,6 +165,14 @@ impl GameState {
         self.fireballs.clear();
         self.animated_fireballs.clear();
         fill_with_dummies(&mut self.play_area, HAND_SIZE);
+    }
+
+    pub fn game_over(&mut self, winner_id: &str) {
+        self.reset_turn();
+        self.players = Vec::new();
+        self.scene = Scene::GameOver {
+            winner_id: winner_id.to_string(),
+        };
     }
 
     pub fn update(&mut self) {
@@ -268,10 +275,10 @@ impl GameState {
             self.get_board_layout(false);
 
         if self.get_local_player().is_some() {
-            draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
-            draw_play_area(self, self.frame as f64);
-            draw_hand(self, self.frame as f64);
             if self.current_turn.is_some() {
+                draw_board(self, self.frame as f64, tile_size, offset_x, offset_y);
+                draw_play_area(self, self.frame as f64);
+                draw_hand(self, self.frame as f64);
                 draw_turn_label(self.is_my_turn(), self);
             } else {
                 draw_waiting_for_players(self);
