@@ -1,4 +1,4 @@
-pub const DEBUG_MODE: bool = true;
+pub const DEBUG_MODE: bool = false;
 
 pub const GAME_PADDING: u32 = 16;
 
@@ -13,6 +13,10 @@ pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
 pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
 pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
 pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
+// pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
+// pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 0.0;
+// pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 0.0;
+// pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.0;
 
 // colors
 pub const GAME_BG_COLOR: u32 = 0x222222ff; // Dark gray

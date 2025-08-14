@@ -195,82 +195,41 @@ pub fn highlight_selected_card_tiles(state: &mut GameState) {
 }
 
 /// Starts a tile rotation animation for a given tile index.
-/// If target_rotation is provided, rotates to that specific rotation.
-/// If clockwise is provided, rotates by 90 degrees in that direction.
-pub fn start_tile_rotation_animation(
-    state: &mut GameState,
-    tile_index: usize,
-    target_rotation: Option<u8>,
-    duration: f64
-) {
+/// Simply animates from the current rotation to the target rotation.
+pub fn start_tile_rotation_animation(state: &mut GameState, tile_index: usize, duration: f64) {
     let tile = &mut state.tiles[tile_index];
     if tile.rotation_anim.is_some() {
         return; // Already animating
     }
 
-    let (from_angle, to_angle, clockwise) = if let Some(target) = target_rotation {
-        // Rotate to specific target rotation
-        let current = tile.current_rotation as i32;
-        let target = target as i32;
+    let (_, current_rotation_offset) = tile.get_wall_sprite_and_rotation();
 
-        // Calculate the shortest rotation path
-        let clockwise_dist = (4 + target - current) % 4;
-        let counter_clockwise_dist = (4 + current - target) % 4;
-
-        let clockwise = clockwise_dist <= counter_clockwise_dist;
-        let rotation_count = if clockwise { clockwise_dist } else { counter_clockwise_dist };
-
-        // Calculate total rotation angle
-        let total_angle = if clockwise { rotation_count * 90 } else { rotation_count * -90 };
-
-        (0.0, total_angle as f32, clockwise)
-    } else {
-        // Default behavior: rotate by 90 degrees clockwise
-        (0.0, 90.0, true)
-    };
+    let from_angle = current_rotation_offset;
+    let to_angle = current_rotation_offset + 90.0; // Always rotate 90° clockwise
 
     tile.rotation_anim = Some(TileRotationAnim {
         from_angle,
         to_angle,
-        current_angle: from_angle,
+        current_angle: 0.0,
         duration,
         elapsed: 0.0,
-        clockwise,
     });
 }
 
 /// Call this every frame to update all tile rotation animations.
 pub fn update_tile_rotation_animations(state: &mut GameState, dt: f64) {
-    // Collect pending rotations that need to be started
-    let mut pending_rotations: Vec<(usize, u8)> = Vec::new();
-
-    for (i, tile) in state.tiles.iter_mut().enumerate() {
-        // Handle pending rotations (debounced fast rotations)
-        if let Some(pending) = &mut tile.pending_rotation {
-            pending.timer -= dt;
-            if pending.timer <= 0.0 {
-                // Timer expired, collect this rotation to start
-                if tile.rotation_anim.is_none() {
-                    pending_rotations.push((i, pending.target));
-                }
-                tile.pending_rotation = None;
-            }
-        }
-
-        // Update existing rotation animations
+    for tile in state.tiles.iter_mut() {
         if let Some(anim) = &mut tile.rotation_anim {
             anim.elapsed += dt;
             let t = (anim.elapsed / anim.duration).min(1.0) as f32;
-            anim.current_angle = anim.from_angle + (anim.to_angle - anim.from_angle) * t;
+            anim.current_angle = (anim.to_angle - anim.from_angle) * t;
             if t >= 1.0 {
-                tile.rotation_anim = None; // Animation complete
+                let new_rotation = (tile.current_rotation + 1) % 4;
+                tile.rotate_entrances(new_rotation);
+                tile.current_rotation = new_rotation;
+                tile.rotation_anim = None;
             }
         }
-    }
-
-    // Start pending rotations after the loop to avoid borrowing conflicts
-    for (tile_index, target_rotation) in pending_rotations {
-        start_tile_rotation_animation(state, tile_index, Some(target_rotation), 0.25);
     }
 }
 

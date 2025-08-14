@@ -95,7 +95,7 @@ impl CardEffect {
             if tile.rotation_anim.is_none() {
                 send_tile_rotation(tile_index);
             }
-            start_tile_rotation_animation(state, tile_index, None, 0.25);
+            start_tile_rotation_animation(state, tile_index, 0.25);
         }
     }
 

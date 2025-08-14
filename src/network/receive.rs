@@ -95,16 +95,8 @@ pub fn receive_tile_rotation(
         player_id
     );
     let is_local_player = game_state.user == player_id;
-    let client_tile = &mut game_state.tiles[*tile_index];
-
-    // Update the client tile with all the server data
-    client_tile.entrances = tile.entrances.clone();
-    client_tile.current_rotation = tile.current_rotation;
-    client_tile.original_rotation = tile.original_rotation;
-    client_tile.original_location = tile.original_location;
-
     if !is_local_player {
-        start_tile_rotation_animation(game_state, *tile_index, None, 0.25);
+        start_tile_rotation_animation(game_state, *tile_index, 0.25);
     }
 }
 

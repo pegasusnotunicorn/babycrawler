@@ -1,7 +1,7 @@
 use crate::game::map::tile::{ Tile, Direction };
 use crate::game::constants::MAP_SIZE;
 use crate::GameState;
-use turbo::{ random, * };
+use turbo::random;
 
 pub fn random_tiles(count: usize) -> Vec<Tile> {
     (0..count)

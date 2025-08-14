@@ -7,7 +7,6 @@ use crate::game::constants::{
     ENTRANCE_COUNT_WEIGHT_3,
     ENTRANCE_COUNT_WEIGHT_4,
 };
-use crate::game::util::lerp_color;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Deserialize, Serialize };
 
@@ -17,11 +16,10 @@ pub struct Tile {
     pub is_highlighted: bool,
     #[serde(skip, default)]
     pub rotation_anim: Option<TileRotationAnim>,
-    #[serde(skip, default)]
-    pub pending_rotation: Option<PendingRotation>,
-    pub original_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
     pub original_location: usize, // original tile index position
+    pub original_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
     pub current_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
+    pub target_rotation: u8, // 0=0deg, 1=90deg, 2=180deg, 3=270deg
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
@@ -31,13 +29,6 @@ pub struct TileRotationAnim {
     pub current_angle: f32,
     pub duration: f64,
     pub elapsed: f64,
-    pub clockwise: bool,
-}
-
-#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
-pub struct PendingRotation {
-    pub target: u8,
-    pub timer: f64,
 }
 
 #[derive(
@@ -64,10 +55,10 @@ impl Tile {
             entrances,
             is_highlighted: false,
             rotation_anim: None,
-            pending_rotation: None,
             original_rotation: 0,
             original_location: 0,
             current_rotation: 0,
+            target_rotation: 0,
         }
     }
 
@@ -405,8 +396,6 @@ impl Tile {
 
     // Rotate the entrances to a specific rotation
     pub fn rotate_entrances(&mut self, rotation: u8) {
-        use Direction::*;
-
         // Calculate how many 90-degree rotations we need to apply from the current state
         let rotations_needed = (4 + (rotation as i32) - (self.current_rotation as i32)) % 4;
 
@@ -414,18 +403,18 @@ impl Tile {
             .iter()
             .map(|dir| {
                 let mut n = match dir {
-                    Up => 0,
-                    Right => 1,
-                    Down => 2,
-                    Left => 3,
+                    Direction::Up => 0,
+                    Direction::Right => 1,
+                    Direction::Down => 2,
+                    Direction::Left => 3,
                 };
                 // Apply the calculated rotations
                 n = (n + (rotations_needed as usize)) % 4;
                 let result = match n {
-                    0 => Up,
-                    1 => Right,
-                    2 => Down,
-                    3 => Left,
+                    0 => Direction::Up,
+                    1 => Direction::Right,
+                    2 => Direction::Down,
+                    3 => Direction::Left,
                     _ => unreachable!(),
                 };
                 result
@@ -450,7 +439,6 @@ impl Tile {
         let final_rotation = if let Some(anim) = &self.rotation_anim {
             anim.current_angle + rotation_offset
         } else {
-            // Use the rotation offset from sprite selection
             rotation_offset
         };
 
@@ -458,16 +446,16 @@ impl Tile {
 
         if DEBUG_MODE {
             // Draw entrance text (URDL) on the tile
-            let entrance_text = self.get_entrance_text();
+            let entrance_text = self.get_entrance_text(final_rotation);
             if !entrance_text.is_empty() {
-                let text_x = x + (tile_size as i32) / 2;
+                let text_x = x;
                 let text_y = y + (tile_size as i32) / 2;
 
                 text!(
                     &entrance_text,
                     x = text_x,
                     y = text_y,
-                    font = "small",
+                    font = "large",
                     color = 0xffffffff // White text
                 );
             }
@@ -478,10 +466,10 @@ impl Tile {
             let t = (frame * FLASH_SPEED).sin() * 0.5 + 0.5;
             sprite!(
                 "tile_selection",
-                x = x,
-                y = y,
-                w = tile_size,
-                h = tile_size,
+                x = x + (tile_size as i32) / 4,
+                y = y + (tile_size as i32) / 4,
+                w = (tile_size as i32) / 2,
+                h = (tile_size as i32) / 2,
                 opacity = t as f32
             );
         }
@@ -516,7 +504,7 @@ impl Tile {
     }
 
     /// Returns a string representation of the tile's entrances (URDL format)
-    fn get_entrance_text(&self) -> String {
+    fn get_entrance_text(&self, rotation_offset: f32) -> String {
         let mut text = String::new();
 
         if self.entrances.contains(&Direction::Up) {
@@ -532,14 +520,21 @@ impl Tile {
             text.push('L');
         }
 
+        // add current rotation
+        text.push_str(&self.current_rotation.to_string());
+
+        // add rotation offset
+        text.push_str(&format!(" ({})", rotation_offset));
+
         text
     }
 
     /// Determines which wall sprite to use and what rotation offset to apply
-    /// based on the tile's current entrances
-    fn get_wall_sprite_and_rotation(&self) -> (&'static str, f32) {
+    pub fn get_wall_sprite_and_rotation(&self) -> (&'static str, f32) {
+        let entrances_to_use = self.entrances.clone();
+
         // Sort entrances to ensure consistent sprite selection
-        let mut sorted_entrances = self.entrances.clone();
+        let mut sorted_entrances = entrances_to_use;
         sorted_entrances.sort_by(|a, b| {
             use Direction::*;
             match (a, b) {
@@ -552,9 +547,7 @@ impl Tile {
             }
         });
 
-        // Count entrances
         let entrance_count = sorted_entrances.len();
-
         match entrance_count {
             0 => ("wall_0", 0.0), // No entrances
             1 => {
