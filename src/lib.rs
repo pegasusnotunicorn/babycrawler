@@ -275,9 +275,19 @@ impl GameState {
     }
 
     fn draw_game(&self) {
-        clear(GAME_BG_COLOR);
-        let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) =
+        // Draw cobblestone background texture for the entire screen
+        let (canvas_width, canvas_height, tile_size, offset_x, offset_y) =
             self.get_board_layout(false);
+
+        sprite!("bg", x = 0, y = 0, w = canvas_width, h = canvas_height);
+
+        let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) = (
+            canvas_width,
+            canvas_height,
+            tile_size,
+            offset_x,
+            offset_y,
+        );
 
         if self.get_local_player().is_some() {
             if self.current_turn.is_some() {

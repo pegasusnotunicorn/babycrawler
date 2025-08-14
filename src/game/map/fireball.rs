@@ -67,7 +67,7 @@ impl Fireball {
             (center_x, center_y)
         };
 
-        let sprite_size = tile_size / 2; // Make fireball sprite smaller than player
+        let sprite_size = tile_size / 2;
         let sprite_x = center_x - sprite_size / 2;
         let sprite_y = center_y - sprite_size / 2;
 

@@ -87,10 +87,10 @@ pub fn draw_hand(state: &GameState, frame: f64) {
     }
     row.draw(frame);
 
-    // Draw tooltip if hovering over a card
+    // Draw tooltip if hovering over a card and no card is being animated
     if let Some(hovered_index) = hovered {
         if let Some(card) = hand.get(hovered_index) {
-            if !card.tooltip.is_empty() && !card.is_dummy() {
+            if !card.tooltip.is_empty() && !card.is_dummy() && state.animated_card.is_none() {
                 draw_tooltip(card, pointer.x as f32, pointer.y as f32);
             }
         }

@@ -1,4 +1,4 @@
-pub const DEBUG_MODE: bool = false;
+pub const DEBUG_MODE: bool = true;
 
 pub const GAME_PADDING: u32 = 16;
 
@@ -9,24 +9,18 @@ pub const HAND_SIZE: usize = 3;
 pub const FONT_HEIGHT: u32 = 12;
 
 // Entrance count weights for tile random generation
-pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 0.0;
-pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 0.0;
-pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 4.0;
-pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.0;
-// pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
-// pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
-// pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
-// pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
+pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
+pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
+pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
+pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
 
 // colors
 pub const GAME_BG_COLOR: u32 = 0x222222ff; // Dark gray
 pub const PLAYER_1_COLOR: u32 = 0xaa0000ff; // Red
 pub const PLAYER_2_COLOR: u32 = 0x0000aaff; // Blue
-pub const WALL_COLOR: u32 = 0x8b4513ff; // Brown
-pub const FLOOR_COLOR: u32 = 0x000000ff; // Black
 
 // card colors
-pub const CARD_DUMMY_COLOR: u32 = 0xffffff80;
+pub const CARD_DUMMY_COLOR: u32 = 0xffffff25;
 pub const CARD_FIRE_COLOR: u32 = 0x8b0000ff;
 pub const CARD_SWAP_COLOR: u32 = 0xb804b8ff;
 pub const CARD_MOVE_COLOR: u32 = 0x0000aaff;

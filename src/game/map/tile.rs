@@ -1,8 +1,7 @@
 use crate::game::constants::{
+    DEBUG_MODE,
     FLASH_SPEED,
-    FLOOR_COLOR,
     MAP_SIZE,
-    WALL_COLOR,
     ENTRANCE_COUNT_WEIGHT_1,
     ENTRANCE_COUNT_WEIGHT_2,
     ENTRANCE_COUNT_WEIGHT_3,
@@ -436,7 +435,6 @@ impl Tile {
         self.current_rotation = rotation;
     }
 
-    /// Draws the tile, including walls and floor and optional highlight pulse
     pub fn draw(
         &self,
         x: i32,
@@ -446,82 +444,46 @@ impl Tile {
         frame: f64,
         is_swap_selected: bool
     ) {
-        let wall_width = 5;
-        let inner_size = tile_size.saturating_sub((wall_width as u32) * 2);
-        let inner_x = x + wall_width;
-        let inner_y = y + wall_width;
-        let ts = tile_size as i32;
+        let (sprite_name, rotation_offset) = self.get_wall_sprite_and_rotation();
 
-        let t = (frame * FLASH_SPEED).sin() * 0.5 + 0.5;
-        let wall_color = if should_highlight {
-            lerp_color(0xffffffff, WALL_COLOR, t)
+        // Calculate the final rotation including any animation
+        let final_rotation = if let Some(anim) = &self.rotation_anim {
+            anim.current_angle + rotation_offset
         } else {
-            WALL_COLOR
+            // Use the rotation offset from sprite selection
+            rotation_offset
         };
 
-        let angle = (if let Some(anim) = &self.rotation_anim {
-            anim.current_angle
-        } else {
-            // Use current_rotation when not animating
-            (self.current_rotation as f32) * 90.0 // Convert rotation (0,1,2,3) to degrees (0°, 90°, 180°, 270°)
-        }) as i32;
-        let seg = ts / 3;
+        sprite!(sprite_name, x = x, y = y, w = tile_size, h = tile_size, rotation = final_rotation);
 
-        // 🔳 Step 1: Draw outer border walls
-        rect!(x = x, y = y, w = tile_size, h = tile_size, color = wall_color, rotation = angle);
+        if DEBUG_MODE {
+            // Draw entrance text (URDL) on the tile
+            let entrance_text = self.get_entrance_text();
+            if !entrance_text.is_empty() {
+                let text_x = x + (tile_size as i32) / 2;
+                let text_y = y + (tile_size as i32) / 2;
 
-        // 🟥 Step 2: Inner floor
-        rect!(
-            x = inner_x,
-            y = inner_y,
-            w = inner_size,
-            h = inner_size,
-            color = FLOOR_COLOR,
-            rotation = angle
-        );
-
-        // 🔲 Step 3: Draw entrances as gaps in walls (only if not animating)
-        if self.rotation_anim.is_none() {
-            for dir in &self.entrances {
-                match dir {
-                    Direction::Up => {
-                        rect!(
-                            x = x + seg,
-                            y = y,
-                            w = ts - seg * 2,
-                            h = wall_width,
-                            color = FLOOR_COLOR
-                        );
-                    }
-                    Direction::Down => {
-                        rect!(
-                            x = x + seg,
-                            y = y + ts - wall_width,
-                            w = ts - seg * 2,
-                            h = wall_width,
-                            color = FLOOR_COLOR
-                        );
-                    }
-                    Direction::Left => {
-                        rect!(
-                            x = x,
-                            y = y + seg,
-                            w = wall_width,
-                            h = ts - seg * 2,
-                            color = FLOOR_COLOR
-                        );
-                    }
-                    Direction::Right => {
-                        rect!(
-                            x = x + ts - wall_width,
-                            y = y + seg,
-                            w = wall_width,
-                            h = ts - seg * 2,
-                            color = FLOOR_COLOR
-                        );
-                    }
-                }
+                text!(
+                    &entrance_text,
+                    x = text_x,
+                    y = text_y,
+                    font = "small",
+                    color = 0xffffffff // White text
+                );
             }
+        }
+
+        // Apply highlight effect if needed
+        if should_highlight {
+            let t = (frame * FLASH_SPEED).sin() * 0.5 + 0.5;
+            sprite!(
+                "tile_selection",
+                x = x,
+                y = y,
+                w = tile_size,
+                h = tile_size,
+                opacity = t as f32
+            );
         }
 
         // Draw X marker if tile is selected for swapping
@@ -550,6 +512,95 @@ impl Tile {
                 color = x_color,
                 rotation = -45
             );
+        }
+    }
+
+    /// Returns a string representation of the tile's entrances (URDL format)
+    fn get_entrance_text(&self) -> String {
+        let mut text = String::new();
+
+        if self.entrances.contains(&Direction::Up) {
+            text.push('U');
+        }
+        if self.entrances.contains(&Direction::Right) {
+            text.push('R');
+        }
+        if self.entrances.contains(&Direction::Down) {
+            text.push('D');
+        }
+        if self.entrances.contains(&Direction::Left) {
+            text.push('L');
+        }
+
+        text
+    }
+
+    /// Determines which wall sprite to use and what rotation offset to apply
+    /// based on the tile's current entrances
+    fn get_wall_sprite_and_rotation(&self) -> (&'static str, f32) {
+        // Sort entrances to ensure consistent sprite selection
+        let mut sorted_entrances = self.entrances.clone();
+        sorted_entrances.sort_by(|a, b| {
+            use Direction::*;
+            match (a, b) {
+                (Up, _) => std::cmp::Ordering::Less,
+                (Down, Up) => std::cmp::Ordering::Greater,
+                (Down, _) => std::cmp::Ordering::Less,
+                (Left, Up | Down) => std::cmp::Ordering::Greater,
+                (Left, _) => std::cmp::Ordering::Less,
+                (Right, _) => std::cmp::Ordering::Greater,
+            }
+        });
+
+        // Count entrances
+        let entrance_count = sorted_entrances.len();
+
+        match entrance_count {
+            0 => ("wall_0", 0.0), // No entrances
+            1 => {
+                // Single entrance - determine sprite and rotation
+                match sorted_entrances[0] {
+                    Direction::Up => ("wall_1", 0.0), // Top entrance
+                    Direction::Down => ("wall_1", 180.0), // Bottom entrance (rotate 180°)
+                    Direction::Left => ("wall_1", 270.0), // Left entrance (rotate 270°)
+                    Direction::Right => ("wall_1", 90.0), // Right entrance (rotate 90°)
+                }
+            }
+            2 => {
+                // Two entrances - check if they're opposite (I-shape) or adjacent (L-shape)
+                let (first, second) = (sorted_entrances[0], sorted_entrances[1]);
+                match (first, second) {
+                    (Direction::Up, Direction::Down) => ("wall_2I", 0.0), // I-shape vertical
+                    (Direction::Left, Direction::Right) => ("wall_2I", 90.0), // I-shape horizontal
+                    (Direction::Up, Direction::Right) => ("wall_2L", 0.0), // L-shape top-right (default)
+                    (Direction::Up, Direction::Left) => ("wall_2L", 270.0), // L-shape top-left (rotate 270°)
+                    (Direction::Down, Direction::Right) => ("wall_2L", 90.0), // L-shape bottom-right (rotate 90°)
+                    (Direction::Down, Direction::Left) => ("wall_2L", 180.0), // L-shape bottom-left (rotate 180°)
+                    _ => ("wall_2L", 0.0), // Fallback
+                }
+            }
+            3 => {
+                // Three entrances - determine which one is missing
+                let all_directions = [
+                    Direction::Up,
+                    Direction::Down,
+                    Direction::Left,
+                    Direction::Right,
+                ];
+                let missing = all_directions
+                    .iter()
+                    .find(|d| !sorted_entrances.contains(d))
+                    .unwrap();
+
+                match missing {
+                    Direction::Up => ("wall_3", 90.0), // Missing top (rotate 90° from default)
+                    Direction::Down => ("wall_3", 270.0), // Missing bottom (rotate 270° from default)
+                    Direction::Left => ("wall_3", 0.0), // Missing left (default orientation)
+                    Direction::Right => ("wall_3", 180.0), // Missing right (rotate 180° from default)
+                }
+            }
+            4 => ("wall_4", 0.0), // All entrances
+            _ => ("wall_0", 0.0), // Fallback
         }
     }
 
