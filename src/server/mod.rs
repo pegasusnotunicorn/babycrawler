@@ -19,7 +19,6 @@ pub enum ServerToClient {
         players: Vec<Player>,
         current_turn: Option<CurrentTurn>,
     },
-
     CardCancelled {
         player_id: String,
         card: Card,

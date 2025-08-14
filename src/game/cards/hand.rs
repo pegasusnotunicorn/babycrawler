@@ -87,6 +87,15 @@ pub fn draw_hand(state: &GameState, frame: f64) {
     }
     row.draw(frame);
 
+    // Draw tooltip if hovering over a card
+    if let Some(hovered_index) = hovered {
+        if let Some(card) = hand.get(hovered_index) {
+            if !card.tooltip.is_empty() && !card.is_dummy() {
+                draw_tooltip(card, pointer.x as f32, pointer.y as f32);
+            }
+        }
+    }
+
     // Draw the animated card on top, if any
     if let Some(drag) = &state.animated_card {
         let (dx, dy) = drag.pos;
@@ -101,4 +110,46 @@ pub fn draw_hand(state: &GameState, frame: f64) {
             Some(frame)
         );
     }
+}
+
+/// Draws a tooltip for a card that follows the mouse
+fn draw_tooltip(card: &Card, mouse_x: f32, mouse_y: f32) {
+    use crate::game::ui::draw_text_box;
+
+    // Tooltip dimensions
+    let tooltip_width = 250;
+    let tooltip_height = 60;
+
+    // Position tooltip above and to the right of mouse, but keep it on screen
+    let mut tooltip_x = mouse_x;
+    let mut tooltip_y = mouse_y - (tooltip_height as f32);
+
+    let screen_bounds = bounds::screen();
+    let screen_width = screen_bounds.w() as f32;
+    let screen_height = screen_bounds.h() as f32;
+
+    // Adjust if tooltip would go off screen - use min/max to clamp values
+    if tooltip_x + (tooltip_width as f32) > screen_width {
+        tooltip_x = (mouse_x - (tooltip_width as f32)).max(0.0);
+    }
+    if tooltip_y < 0.0 {
+        tooltip_y = 0.0;
+    }
+    if tooltip_y + (tooltip_height as f32) > screen_height {
+        tooltip_y = (mouse_y - (tooltip_height as f32)).max(0.0);
+    }
+    if tooltip_x < 0.0 {
+        tooltip_x = 0.0;
+    }
+
+    // Draw tooltip background using draw_text_box
+    draw_text_box(
+        tooltip_x as f32,
+        tooltip_y as f32,
+        tooltip_width,
+        tooltip_height,
+        &format!("{}\n\n{}", card.name, card.tooltip),
+        0xffffffff, // White text
+        0x222222ff // Dark gray background
+    );
 }

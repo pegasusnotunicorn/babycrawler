@@ -1,5 +1,4 @@
 use crate::game::cards::card::{ Card, CardVisualState };
-use crate::game::cards::card_effect::CardEffect;
 use crate::game::cards::card_slot::CardSlot;
 use crate::game::constants::{ GAME_PADDING, HAND_SIZE, CARD_DUMMY_COLOR };
 use crate::game::util::point_in_bounds;
@@ -50,14 +49,7 @@ impl CardRow {
                 );
             } else {
                 // Draw dummy/empty slot
-                let dummy = Card {
-                    id: 0,
-                    name: String::new(),
-                    effect: CardEffect::Dummy,
-                    color: outline_color,
-                    hand_index: None,
-                    hide_confirm_button: false,
-                };
+                let dummy = Card::dummy_card();
                 dummy.draw(
                     x,
                     y,

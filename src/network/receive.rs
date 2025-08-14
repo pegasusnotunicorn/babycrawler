@@ -13,9 +13,6 @@ use crate::GameState;
 use crate::game::map::clear_highlights;
 use crate::game::map::fireball::Fireball;
 use crate::game::map::tile::Tile;
-use crate::scene::Scene;
-use crate::game::constants::HAND_SIZE;
-use crate::game::cards::play_area::fill_with_dummies;
 
 pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
     log!("📨 [RECEIVE] Connected users: {:?}", users);

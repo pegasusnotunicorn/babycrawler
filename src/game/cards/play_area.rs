@@ -61,6 +61,7 @@ pub fn draw_play_area(state: &GameState, frame: f64) {
         } else {
             false
         };
+
         if let Some(card) = &slot.card {
             let mut visual_state = slot.visual_state;
             if card.id == 0 {

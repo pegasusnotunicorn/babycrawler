@@ -6,7 +6,7 @@ use crate::network::send::send_end_turn;
 const BUTTON_WIDTH: u32 = 100;
 
 /// Helper function to draw a text box with outline, fill, and text
-fn draw_text_box(
+pub fn draw_text_box(
     x: f32,
     y: f32,
     width: u32,

@@ -7,6 +7,10 @@ use crate::game::constants::{
     GAME_BG_COLOR,
     FLASH_SPEED,
     CARD_DUMMY_COLOR,
+    CARD_FIRE_COLOR,
+    CARD_SWAP_COLOR,
+    CARD_MOVE_COLOR,
+    CARD_ROTATE_COLOR,
 };
 use bitflags::bitflags;
 
@@ -27,6 +31,7 @@ pub struct Card {
     pub color: u32,
     pub hand_index: Option<usize>, // Track which hand slot this card came from
     pub hide_confirm_button: bool,
+    pub tooltip: String,
 }
 
 const CARD_CONSTRUCTORS: &[fn() -> Card] = &[
@@ -59,9 +64,10 @@ impl Card {
             id: random::u32(),
             name: "TURN".into(),
             effect: CardEffect::RotateCard,
-            color: 0xb804b8ff, // Light purple
+            color: CARD_ROTATE_COLOR,
             hand_index: None,
             hide_confirm_button: false,
+            tooltip: "Rotate any adjacent rooms.".to_string(),
         }
     }
 
@@ -70,9 +76,10 @@ impl Card {
             id: random::u32(),
             name: "MOVE".into(),
             effect: CardEffect::MoveOneTile,
-            color: 0x00aa00ff, // Dark green
+            color: CARD_MOVE_COLOR,
             hand_index: None,
             hide_confirm_button: false,
+            tooltip: "Move to any connected room.".to_string(),
         }
     }
 
@@ -81,9 +88,10 @@ impl Card {
             id: random::u32(),
             name: "SWAP".into(),
             effect: CardEffect::SwapCard,
-            color: 0xff8800ff, // Dark orange
+            color: CARD_SWAP_COLOR,
             hand_index: None,
             hide_confirm_button: false,
+            tooltip: "Swap any two adjacent rooms.".to_string(),
         }
     }
 
@@ -92,9 +100,10 @@ impl Card {
             id: random::u32(),
             name: "FIRE".into(),
             effect: CardEffect::FireCard,
-            color: 0x8b0000ff, // Dark red
+            color: CARD_FIRE_COLOR,
             hand_index: None,
             hide_confirm_button: true,
+            tooltip: "Fire a fireball in a line.".to_string(),
         }
     }
 
@@ -106,6 +115,7 @@ impl Card {
             color: CARD_DUMMY_COLOR,
             hand_index: None,
             hide_confirm_button: false,
+            tooltip: "".to_string(),
         }
     }
 

@@ -255,12 +255,7 @@ pub fn handle_move_player(
     broadcast_player_moved(user_id, new_position, is_canceled);
 }
 
-pub fn handle_swap_tiles(
-    channel: &mut GameChannel,
-    user_id: &str,
-    tile_index_1: usize,
-    tile_index_2: usize
-) {
+pub fn handle_swap_tiles(channel: &mut GameChannel, tile_index_1: usize, tile_index_2: usize) {
     // Validate that the tiles are within bounds
     if tile_index_1 >= channel.board_tiles.len() || tile_index_2 >= channel.board_tiles.len() {
         log!(
