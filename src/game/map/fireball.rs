@@ -67,32 +67,26 @@ impl Fireball {
             (center_x, center_y)
         };
 
-        let diameter = tile_size / 4; // Make fireball smaller than player
-        let radius = diameter / 2;
-        let fireball_color = 0xff4400ff; // Orange-red fire color
+        let sprite_size = tile_size / 2; // Make fireball sprite smaller than player
+        let sprite_x = center_x - sprite_size / 2;
+        let sprite_y = center_y - sprite_size / 2;
 
-        // Adjust coordinates to account for circle being drawn from top-left corner
-        let circle_x = center_x - radius;
-        let circle_y = center_y - radius;
-
-        circ!(d = diameter as u32, x = circle_x, y = circle_y, color = fireball_color);
-
-        // Add a thin rect trailing the fireball to show direction of travel
-        let (wave_x, wave_y, wave_width, wave_height) = match self.direction {
-            Direction::Up => (center_x.saturating_sub(2), center_y + radius, 4, radius), // Vertical rect below
-            Direction::Down =>
-                (center_x.saturating_sub(2), center_y.saturating_sub(radius * 2), 4, radius), // Vertical rect above
-            Direction::Left => (center_x + radius, center_y.saturating_sub(2), radius, 4), // Horizontal rect to right
-            Direction::Right =>
-                (center_x.saturating_sub(radius * 2), center_y.saturating_sub(2), radius, 4), // Horizontal rect to left
+        // Draw the fireball sprite with rotation based on direction
+        // The sprite is designed for traveling down, so we rotate accordingly
+        let rotation = match self.direction {
+            Direction::Up => 180.0, // Rotate 180° for up
+            Direction::Down => 0.0, // No rotation for down (default)
+            Direction::Left => 90.0, // Rotate 90° for left
+            Direction::Right => 270.0, // Rotate 270° for right
         };
 
-        rect!(
-            x = wave_x,
-            y = wave_y,
-            width = wave_width,
-            height = wave_height,
-            color = fireball_color
+        sprite!(
+            "fireball",
+            x = sprite_x as i32,
+            y = sprite_y as i32,
+            w = sprite_size,
+            h = sprite_size,
+            rotation = rotation
         );
     }
 }
