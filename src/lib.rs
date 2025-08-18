@@ -5,14 +5,7 @@ mod scene;
 mod network;
 
 use crate::game::map::{ draw_board, clear_highlights };
-use crate::game::constants::{
-    DEBUG_MODE,
-    GAME_PADDING,
-    HAND_SIZE,
-    MAP_SIZE,
-    GAME_BG_COLOR,
-    GAME_CHANNEL,
-};
+use crate::game::constants::{ DEBUG_MODE, GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_CHANNEL };
 use crate::game::inputs::handle_input;
 use crate::game::map::{ Player, PlayerId };
 use crate::game::map::Tile;
@@ -181,7 +174,10 @@ impl GameState {
     }
 
     pub fn update(&mut self) {
-        clear(GAME_BG_COLOR);
+        // Draw background sprite for the entire screen
+        let (canvas_width, canvas_height, _, _, _) = self.get_board_layout(false);
+        sprite!("bg", x = 0, y = 0, w = canvas_width, h = canvas_height);
+
         self.frame += 1;
         update_animations(self);
         match &self.scene {
@@ -275,19 +271,9 @@ impl GameState {
     }
 
     fn draw_game(&self) {
-        // Draw cobblestone background texture for the entire screen
+        // Get board layout parameters
         let (canvas_width, canvas_height, tile_size, offset_x, offset_y) =
             self.get_board_layout(false);
-
-        sprite!("bg", x = 0, y = 0, w = canvas_width, h = canvas_height);
-
-        let (_canvas_width, _canvas_height, tile_size, offset_x, offset_y) = (
-            canvas_width,
-            canvas_height,
-            tile_size,
-            offset_x,
-            offset_y,
-        );
 
         if self.get_local_player().is_some() {
             if self.current_turn.is_some() {

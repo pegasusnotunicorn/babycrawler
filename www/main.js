@@ -102,12 +102,31 @@ class GamepadManager {
 
   dispatchButtonEvent(gamepad, buttonIndex, eventType) {
     let keyEvent;
+    console.log(buttonIndex);
     switch (buttonIndex) {
       case 0: // A
         keyEvent = new KeyboardEvent(eventType, { key: "z", code: "KeyZ" });
         break;
       case 1: // B
         keyEvent = new KeyboardEvent(eventType, { key: "x", code: "KeyX" });
+        break;
+      case 2: // X
+        keyEvent = new KeyboardEvent(eventType, { key: "c", code: "KeyC" });
+        break;
+      case 3: // Y
+        keyEvent = new KeyboardEvent(eventType, { key: "v", code: "KeyV" });
+        break;
+      case 8: // Select
+        keyEvent = new KeyboardEvent(eventType, {
+          key: "Enter",
+          code: "Enter",
+        });
+        break;
+      case 9: // Start
+        keyEvent = new KeyboardEvent(eventType, {
+          key: " ",
+          code: "Space",
+        });
         break;
       case 12: // D-pad Up
         keyEvent = new KeyboardEvent(eventType, {
@@ -137,7 +156,6 @@ class GamepadManager {
       default:
         return; // Unmapped button
     }
-    console.log(keyEvent);
 
     this.canvas.dispatchEvent(keyEvent);
   }
@@ -205,6 +223,335 @@ class GamepadManager {
   }
 }
 
+class TouchGamepad {
+  constructor() {
+    this.buttons = new Array(16)
+      .fill(null)
+      .map(() => ({ pressed: false, value: 0 }));
+    this.axes = [0, 0, 0, 0]; // Left stick X, Y, Right stick X, Y
+    this.connected = true;
+    this.id = "Touch Gamepad";
+    this.index = 0;
+    this.mapping = "standard";
+    this.timestamp = performance.now();
+
+    this.listeners = [];
+    this.activeButtons = new Set();
+
+    this.init();
+  }
+
+  static init() {
+    new TouchGamepad();
+  }
+
+  init() {
+    const overlay = document.getElementById("touch-gamepad-overlay");
+
+    // Toggle visibility on touch
+    document.body.addEventListener("touchstart", () => {
+      overlay.classList.remove("hidden");
+    });
+
+    // Add touch event listeners to all buttons
+    const buttons = overlay.querySelectorAll("[data-button]");
+    this.buttonElements = {};
+    this.isTracking = false;
+    this.dpadThreshold = 60; // pixels - distance threshold for diagonal presses
+    this.dpadMinDistance = 40; // pixels - minimum distance from center to activate multiple buttons
+
+    buttons.forEach((button) => {
+      const buttonIndex = parseInt(button.dataset.button);
+      this.buttonElements[buttonIndex] = button;
+
+      // Touch events
+      button.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        this.pressButton(buttonIndex);
+        button.classList.add("pressed");
+      });
+
+      button.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        this.releaseButton(buttonIndex);
+        button.classList.remove("pressed");
+      });
+
+      button.addEventListener("touchcancel", (e) => {
+        e.preventDefault();
+        this.releaseButton(buttonIndex);
+        button.classList.remove("pressed");
+      });
+
+      // Mouse events for desktop testing
+      button.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        this.pressButton(buttonIndex);
+        button.classList.add("pressed");
+      });
+
+      button.addEventListener("mouseup", (e) => {
+        e.preventDefault();
+        this.releaseButton(buttonIndex);
+        button.classList.remove("pressed");
+      });
+
+      button.addEventListener("mouseleave", (e) => {
+        this.releaseButton(buttonIndex);
+        button.classList.remove("pressed");
+      });
+
+      // Handle mouse enter for gliding
+      button.addEventListener("mouseenter", (e) => {
+        if (e.buttons === 1) {
+          // Left mouse button is down
+          this.pressButton(buttonIndex);
+          button.classList.add("pressed");
+        }
+      });
+    });
+
+    // Helper function to get button center point
+    this.getButtonCenter = (button) => {
+      const rect = button.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+    };
+
+    // Helper function to get D-pad center point
+    this.getDpadCenter = () => {
+      const dpadContainer = document.querySelector(".dpad-container");
+      const rect = dpadContainer.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+    };
+
+    // Helper function to get distance between two points
+    this.getDistance = (p1, p2) => {
+      return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    };
+
+    // Helper function to check for nearby D-pad buttons with smart minimum distance
+    this.checkDpadProximity = (touchX, touchY) => {
+      const dpadButtons = [12, 13, 14, 15]; // up, down, left, right
+      const buttonDistances = [];
+      const dpadCenter = this.getDpadCenter();
+
+      // Get distances to all D-pad buttons
+      dpadButtons.forEach((buttonIndex) => {
+        const button = this.buttonElements[buttonIndex];
+        if (button) {
+          const center = this.getButtonCenter(button);
+          const distance = this.getDistance({ x: touchX, y: touchY }, center);
+
+          if (distance <= this.dpadThreshold) {
+            buttonDistances.push({ buttonIndex, distance });
+          }
+        }
+      });
+
+      // Sort by distance (closest first)
+      buttonDistances.sort((a, b) => a.distance - b.distance);
+
+      if (buttonDistances.length === 0) {
+        return [];
+      }
+
+      // Always include the closest button
+      const result = [buttonDistances[0].buttonIndex];
+
+      // Check if we're far enough from center to allow multiple buttons
+      const distanceFromCenter = this.getDistance(
+        { x: touchX, y: touchY },
+        dpadCenter
+      );
+      if (distanceFromCenter >= this.dpadMinDistance) {
+        // Include other buttons within threshold
+        for (let i = 1; i < buttonDistances.length; i++) {
+          result.push(buttonDistances[i].buttonIndex);
+        }
+      }
+
+      return result;
+    };
+
+    // Helper function to check non-dpad buttons
+    this.checkNonDpadButtons = (touchX, touchY) => {
+      const nonDpadButtons = [0, 1, 2, 3, 8, 9]; // A, B, X, Y, Select, Start
+      const elementAtPoint = document.elementFromPoint(touchX, touchY);
+
+      if (elementAtPoint && elementAtPoint.dataset.button) {
+        const buttonIndex = parseInt(elementAtPoint.dataset.button);
+        if (nonDpadButtons.includes(buttonIndex)) {
+          return [buttonIndex];
+        }
+      }
+
+      return [];
+    };
+
+    // Global touch tracking
+    document.addEventListener("touchstart", (e) => {
+      this.isTracking = true;
+    });
+
+    document.addEventListener("touchend", (e) => {
+      // Only stop tracking if no touches remain
+      if (e.touches.length === 0) {
+        this.isTracking = false;
+        // Release all buttons
+        this.activeButtons.forEach((buttonIndex) => {
+          const button = this.buttonElements[buttonIndex];
+          this.releaseButton(buttonIndex);
+          button.classList.remove("pressed");
+        });
+      }
+    });
+
+    // Global touch move handler for gliding over buttons
+    document.addEventListener("touchmove", (e) => {
+      if (!this.isTracking) return;
+
+      e.preventDefault();
+
+      const currentlyPressed = new Set();
+
+      // Get all active touches
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+
+        // Check D-pad proximity
+        const nearbyDpadButtons = this.checkDpadProximity(
+          touch.clientX,
+          touch.clientY
+        );
+        nearbyDpadButtons.forEach((buttonIndex) => {
+          currentlyPressed.add(buttonIndex);
+
+          if (!this.activeButtons.has(buttonIndex)) {
+            this.pressButton(buttonIndex);
+            this.buttonElements[buttonIndex].classList.add("pressed");
+          }
+        });
+
+        // Check non-D-pad buttons
+        const nonDpadButtons = this.checkNonDpadButtons(
+          touch.clientX,
+          touch.clientY
+        );
+        nonDpadButtons.forEach((buttonIndex) => {
+          currentlyPressed.add(buttonIndex);
+
+          if (!this.activeButtons.has(buttonIndex)) {
+            this.pressButton(buttonIndex);
+            this.buttonElements[buttonIndex].classList.add("pressed");
+          }
+        });
+      }
+
+      // Release buttons that are no longer being touched or in proximity
+      this.activeButtons.forEach((buttonIndex) => {
+        if (!currentlyPressed.has(buttonIndex)) {
+          this.releaseButton(buttonIndex);
+          this.buttonElements[buttonIndex].classList.remove("pressed");
+        }
+      });
+    });
+
+    // Global mouse move handler for gliding over buttons
+    overlay.addEventListener("mousemove", (e) => {
+      if (e.buttons === 1) {
+        // Left mouse button is down
+        // Check D-pad proximity
+        const nearbyDpadButtons = this.checkDpadProximity(e.clientX, e.clientY);
+        nearbyDpadButtons.forEach((buttonIndex) => {
+          if (!this.activeButtons.has(buttonIndex)) {
+            this.pressButton(buttonIndex);
+            this.buttonElements[buttonIndex].classList.add("pressed");
+          }
+        });
+
+        // Check non-D-pad buttons
+        const nonDpadButtons = this.checkNonDpadButtons(e.clientX, e.clientY);
+        nonDpadButtons.forEach((buttonIndex) => {
+          if (!this.activeButtons.has(buttonIndex)) {
+            this.pressButton(buttonIndex);
+            this.buttonElements[buttonIndex].classList.add("pressed");
+          }
+        });
+      }
+    });
+
+    // Global mouse up to release all buttons
+    document.addEventListener("mouseup", () => {
+      this.activeButtons.forEach((buttonIndex) => {
+        const button = this.buttonElements[buttonIndex];
+        this.releaseButton(buttonIndex);
+        button.classList.remove("pressed");
+      });
+    });
+
+    // Override navigator.getGamepads to include our virtual gamepad
+    this.originalGetGamepads = navigator.getGamepads.bind(navigator);
+    navigator.getGamepads = () => {
+      const gamepads = this.originalGetGamepads();
+      const result = Array.from(gamepads);
+      result[0] = this; // Place our virtual gamepad at index 0
+      return result;
+    };
+
+    // Dispatch gamepad events
+    this.dispatchConnectedEvent();
+  }
+
+  pressButton(index) {
+    if (!this.activeButtons.has(index)) {
+      this.activeButtons.add(index);
+      this.buttons[index].pressed = true;
+      this.buttons[index].value = 1;
+      this.timestamp = performance.now();
+      this.dispatchButtonEvent("gamepadbuttondown", index);
+    }
+  }
+
+  releaseButton(index) {
+    if (this.activeButtons.has(index)) {
+      this.activeButtons.delete(index);
+      this.buttons[index].pressed = false;
+      this.buttons[index].value = 0;
+      this.timestamp = performance.now();
+      this.dispatchButtonEvent("gamepadbuttonup", index);
+    }
+  }
+
+  dispatchButtonEvent(type, buttonIndex) {
+    const event = new CustomEvent(type, {
+      detail: {
+        gamepad: this,
+        button: buttonIndex,
+      },
+    });
+    window.dispatchEvent(event);
+  }
+
+  dispatchConnectedEvent() {
+    const event = new CustomEvent("gamepadconnected", {
+      detail: { gamepad: this },
+    });
+    window.dispatchEvent(event);
+  }
+
+  // Standard gamepad API methods
+  vibrate(value) {
+    // Not implemented for virtual gamepad
+    return Promise.resolve();
+  }
+}
+
 /**************************************************/
 /* WASM IMPORT PROXY                              */
 /**************************************************/
@@ -238,94 +585,6 @@ window.turboSolUser = window.turboSolUser ?? (() => null);
 window.turboSolGetAccount = window.turboSolGetAccount ?? (async () => {});
 window.turboSolSignAndSendTransaction =
   window.turboSolSignAndSendTransaction ?? (async () => {});
-
-/**************************************************/
-/* TOUCH CONTROLS                                 */
-/**************************************************/
-
-function initializeNipple(canvas) {
-  const presses = {
-    up: {
-      keydown: new KeyboardEvent("keydown", {
-        key: "ArrowUp",
-        code: "ArrowUp",
-      }),
-      keyup: new KeyboardEvent("keyup", {
-        key: "ArrowUp",
-        code: "ArrowUp",
-      }),
-    },
-    down: {
-      keydown: new KeyboardEvent("keydown", {
-        key: "ArrowDown",
-        code: "ArrowDown",
-      }),
-      keyup: new KeyboardEvent("keyup", {
-        key: "ArrowDown",
-        code: "ArrowDown",
-      }),
-    },
-    left: {
-      keydown: new KeyboardEvent("keydown", {
-        key: "ArrowLeft",
-        code: "ArrowLeft",
-      }),
-      keyup: new KeyboardEvent("keyup", {
-        key: "ArrowLeft",
-        code: "ArrowLeft",
-      }),
-    },
-    right: {
-      keydown: new KeyboardEvent("keydown", {
-        key: "ArrowRight",
-        code: "ArrowRight",
-      }),
-      keyup: new KeyboardEvent("keyup", {
-        key: "ArrowRight",
-        code: "ArrowRight",
-      }),
-    },
-  };
-  let active = null;
-  nipplejs
-    .create({ dataOnly: true })
-    .on("dir:up", (e) => {
-      if (active && active !== presses.up) {
-        canvas.dispatchEvent(active.keyup);
-      }
-      canvas.dispatchEvent(presses.up.keydown);
-      active = presses.up;
-    })
-    .on("dir:down", (e) => {
-      if (active && active !== presses.down) {
-        canvas.dispatchEvent(active.keyup);
-      }
-      canvas.dispatchEvent(presses.down.keydown);
-      active = presses.down;
-    })
-    .on("dir:left", (e) => {
-      if (active && active !== presses.left) {
-        canvas.dispatchEvent(active.keyup);
-      }
-      canvas.dispatchEvent(presses.left.keydown);
-      active = presses.left;
-    })
-    .on("dir:right", (e) => {
-      if (active && active !== presses.right) {
-        canvas.dispatchEvent(active.keyup);
-      }
-      canvas.dispatchEvent(presses.right.keydown);
-      active = presses.right;
-    })
-    .on("end", (e) => {
-      if (active) {
-        canvas.dispatchEvent(active.keyup);
-      }
-      active = null;
-    });
-  // Disable double-tap zoom on mobile
-  document.addEventListener("dblclick", (e) => e.preventDefault());
-}
 
 /**************************************************/
 /* FETCH WITH PROGRESS UTIL                       */
@@ -417,6 +676,15 @@ function center(screen, item) {
 /***************************************************/
 
 async function run() {
+  // Disable double-tap zoom on mobile
+  document.addEventListener("dblclick", (e) => e.preventDefault());
+
+  // Initialize the touch gamepad
+  const isTouchGamepadOverlayEnabled = false;
+  if (isTouchGamepadOverlayEnabled) {
+    TouchGamepad.init();
+  }
+
   // Initialize a temporary 2D context canvas for loading state.
   const loadingCanvas = document.createElement("canvas");
   const player = document.getElementById("player");
@@ -522,10 +790,6 @@ async function run() {
   const canvas = document.createElement("canvas");
   canvas.width = 360;
   canvas.height = 640;
-
-  // Initialize nipple (aka virtual analog stick).
-  console.log("Initializing touch controls...");
-  initializeNipple(canvas);
 
   // Update progress bar to 96%
   progress = 96;

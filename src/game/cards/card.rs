@@ -4,7 +4,6 @@ use serde::{ Serialize, Deserialize };
 use crate::game::constants::{
     GAME_PADDING,
     CARD_HOVER_OUTLINE_COLOR,
-    GAME_BG_COLOR,
     FLASH_SPEED,
     CARD_DUMMY_COLOR,
     CARD_FIRE_COLOR,
@@ -213,7 +212,7 @@ impl Card {
         } else {
             // Fallback to colored rectangle for dummy cards or missing sprites
             let fill_color = if visual_state.contains(CardVisualState::DUMMY) {
-                GAME_BG_COLOR
+                CARD_DUMMY_COLOR
             } else {
                 self.color
             };
