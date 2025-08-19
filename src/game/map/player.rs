@@ -1,22 +1,34 @@
-use crate::game::constants::{ PLAYER_1_COLOR, PLAYER_2_COLOR, PLAYER_HEALTH };
+use crate::game::constants::PLAYER_HEALTH;
 use crate::game::map::tile::Tile;
 use crate::game::cards::card::Card;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 
-#[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub enum PlayerId {
     Player1,
     Player2,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+pub enum Direction {
+    Down,
+    Right,
+    Up,
+    Left,
+}
+
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Player {
     pub id: PlayerId,
     pub position: (usize, usize),
     pub original_position: (usize, usize),
     pub hand: Vec<Card>,
     pub health: u32,
+    pub direction: Direction,
+    pub animation_frame: usize,
+    pub animation_timer: f32,
+    pub is_moving: bool,
 }
 
 impl Player {
@@ -29,6 +41,10 @@ impl Player {
             original_position: (x, y),
             hand,
             health: PLAYER_HEALTH,
+            direction: Direction::Down, // Default direction
+            animation_frame: 0,
+            animation_timer: 0.0,
+            is_moving: false,
         }
     }
 
@@ -71,6 +87,52 @@ impl Player {
         self.health > 0
     }
 
+    pub fn set_direction(&mut self, direction: Direction) {
+        self.direction = direction;
+    }
+
+    pub fn set_moving(&mut self, moving: bool) {
+        self.is_moving = moving;
+        if !moving {
+            // Reset to idle frame when stopping
+            self.animation_frame = 0;
+            self.animation_timer = 0.0;
+        }
+    }
+
+    pub fn update_animation(&mut self, delta_time: f32) {
+        if self.is_moving {
+            // Update animation timer only when moving
+            self.animation_timer += delta_time;
+
+            // Change animation frame every 0.15 seconds (about 6-7 FPS for smooth walking)
+            if self.animation_timer >= 0.15 {
+                self.animation_timer = 0.0;
+                self.animation_frame = (self.animation_frame + 1) % 4; // Cycle through 4 frames
+            }
+
+            // Auto-stop moving after 0.6 seconds (4 frames * 0.15 seconds) for network movement
+            if self.animation_timer >= 0.6 {
+                self.set_moving(false);
+            }
+        } else {
+            // Idle animation - cycle between frames 0 and 2
+            self.animation_timer += delta_time;
+
+            // Change idle frame every 0.8 seconds (slower, more relaxed)
+            if self.animation_timer >= 0.8 {
+                self.animation_timer = 0.0;
+                // Toggle between frame 0 and frame 2
+                if self.animation_frame == 0 {
+                    self.animation_frame = 2;
+                } else {
+                    self.animation_frame = 0;
+                }
+            }
+        }
+    }
+
+    /// Calculate and set direction based on movement from one position to another
     pub fn draw(
         &self,
         tile_size: u32,
@@ -89,20 +151,46 @@ impl Player {
             (center_x, center_y)
         };
 
-        let diameter = tile_size / 3;
-        let radius = diameter / 2;
-        let color = match self.id {
-            PlayerId::Player1 => PLAYER_1_COLOR,
-            PlayerId::Player2 => PLAYER_2_COLOR,
+        // Draw the player sprite using the spritesheet
+        // Select the row based on direction
+        let sprite_y = match self.direction {
+            Direction::Down => 0, // Top row - moving down
+            Direction::Right => 1, // Second row - moving right
+            Direction::Up => 2, // Third row - moving up
+            Direction::Left => 3, // Bottom row - moving left
+        };
+        let sprite_x = self.animation_frame; // Use animation frame to cycle through frames
+
+        // Select sprite based on player ID
+        let sprite_name = match self.id {
+            PlayerId::Player1 => "baby_red",
+            PlayerId::Player2 => "baby_blue",
         };
 
-        // Adjust coordinates to account for circle being drawn from top-left corner
-        let circle_x = center_x - radius;
-        let circle_y = center_y - radius;
+        // Calculate texture coordinates for the 4x4 spritesheet
+        let frame_width = 36;
+        let frame_height = 36;
 
-        circ!(d = diameter as u32, x = circle_x, y = circle_y, color = color);
+        // Calculate the offset within the spritesheet for the specific frame
+        let tx = -((sprite_x as i32) * frame_width) as i32;
+        let ty = -((sprite_y as i32) * frame_height) as i32;
 
-        // Draw hearts instead of health bar
+        // Draw the sprite at the center position
+        sprite!(
+            sprite_name,
+            x = center_x - 18,
+            y = center_y - 14,
+            w = 36,
+            h = 36,
+            tx = tx,
+            ty = ty,
+            cover = false
+        );
+
+        self.draw_hearts(center_x, center_y, tile_size / 6);
+    }
+
+    fn draw_hearts(&self, center_x: u32, center_y: u32, radius: u32) {
         let heart_size = 12;
         let heart_spacing = 0;
         let total_hearts_width = (heart_size + heart_spacing) * 3 - heart_spacing; // 3 hearts with spacing

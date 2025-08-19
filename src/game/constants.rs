@@ -1,4 +1,4 @@
-pub const DEBUG_MODE: bool = false;
+pub const DEBUG_MODE: bool = true;
 
 // Game
 pub const MAP_SIZE: usize = 5;
@@ -13,10 +13,6 @@ pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
 pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
 pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
 pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
-
-// Player colors
-pub const PLAYER_1_COLOR: u32 = 0xaa0000ff; // Red
-pub const PLAYER_2_COLOR: u32 = 0x0000aaff; // Blue
 
 // Card colors
 pub const CARD_DUMMY_COLOR: u32 = 0xffffff25;

@@ -104,6 +104,9 @@ pub fn update_animations(state: &mut GameState) {
     update_player_movement_animations(state);
     update_tile_animations(state);
     update_fireball_animations(state);
+
+    // Update player sprite animations
+    update_player_sprite_animations(state);
 }
 
 /// Generic spring-to-target function for 2D positions.
@@ -264,6 +267,11 @@ pub fn start_player_movement_animation(
         current_path_index: 0,
         animating: true,
     });
+
+    // Set the player's moving state to true
+    if let Some(player) = state.get_player_by_user_id(player_id) {
+        player.set_moving(true);
+    }
 }
 
 /// Start a direct A-to-B player movement animation (for canceled movements)
@@ -295,12 +303,19 @@ pub fn start_direct_player_movement_animation(
         current_path_index: 0,
         animating: true,
     });
+
+    // Set the player's moving state to true
+    if let Some(player) = state.get_player_by_user_id(player_id) {
+        player.set_moving(true);
+    }
 }
 
 /// Update player movement animations
 pub fn update_player_movement_animations(state: &mut GameState) {
     // Get board layout before mutable borrow
     let (_, _, tile_size, offset_x, offset_y) = state.get_board_layout(false);
+
+    let mut direction_update: Option<(String, crate::game::map::player::Direction)> = None;
 
     if let Some(anim) = &mut state.animated_player {
         if anim.animating {
@@ -322,6 +337,33 @@ pub fn update_player_movement_animations(state: &mut GameState) {
                     0.1 // snap_velocity - snap very easily
                 );
 
+                // Calculate movement direction for sprite facing
+                let (from_x, from_y) = anim.pos;
+                let (to_x, to_y) = new_pos;
+                let dx = to_x - from_x;
+                let dy = to_y - from_y;
+
+                // Only update direction if there's significant movement (prevents oscillation)
+                let movement_threshold = 1.0; // minimum pixels of movement
+                if dx.abs() > movement_threshold || dy.abs() > movement_threshold {
+                    // Determine which direction the player should face
+                    let new_direction = if dy.abs() > dx.abs() {
+                        if dy > 0.0 {
+                            crate::game::map::player::Direction::Down
+                        } else {
+                            crate::game::map::player::Direction::Up
+                        }
+                    } else {
+                        if dx > 0.0 {
+                            crate::game::map::player::Direction::Right
+                        } else {
+                            crate::game::map::player::Direction::Left
+                        }
+                    };
+
+                    direction_update = Some((anim.player_id.clone(), new_direction));
+                }
+
                 anim.pos = new_pos;
                 anim.velocity = new_velocity;
 
@@ -339,10 +381,18 @@ pub fn update_player_movement_animations(state: &mut GameState) {
                         // Update player position after clearing the animation
                         if let Some(player) = state.get_player_by_user_id(&player_id) {
                             player.position = target_pos;
+                            player.set_moving(false); // Stop moving when animation completes
                         }
                     }
                 }
             }
+        }
+    }
+
+    // Apply direction update after animation update to avoid borrowing conflicts
+    if let Some((player_id, direction)) = direction_update {
+        if let Some(player) = state.get_player_by_user_id(&player_id) {
+            player.set_direction(direction);
         }
     }
 }
@@ -621,5 +671,14 @@ pub fn update_fireball_animations(state: &mut GameState) {
     // Remove completed animations (in reverse order to maintain indices)
     for &index in completed_indices.iter().rev() {
         state.animated_fireballs.remove(index);
+    }
+}
+
+/// Updates player sprite animations (walking frames, etc.)
+pub fn update_player_sprite_animations(state: &mut GameState) {
+    let delta_time = 1.0 / 60.0; // Assuming 60 FPS
+
+    for player in &mut state.players {
+        player.update_animation(delta_time);
     }
 }

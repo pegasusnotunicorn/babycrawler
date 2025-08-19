@@ -272,8 +272,7 @@ impl GameState {
 
     fn draw_game(&self) {
         // Get board layout parameters
-        let (canvas_width, canvas_height, tile_size, offset_x, offset_y) =
-            self.get_board_layout(false);
+        let (_, _, tile_size, offset_x, offset_y) = self.get_board_layout(false);
 
         if self.get_local_player().is_some() {
             if self.current_turn.is_some() {
