@@ -6,7 +6,7 @@ mod network;
 
 use crate::game::map::{ draw_board, clear_highlights };
 use crate::game::constants::{ DEBUG_MODE, GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_CHANNEL };
-use crate::game::inputs::handle_input;
+use crate::game::inputs::{ handle_input, handle_reset_game };
 use crate::game::map::{ Player, PlayerId, Monster };
 use crate::game::map::Tile;
 use crate::game::ui::{
@@ -196,6 +196,7 @@ impl GameState {
             }
         }
         draw_debug(self);
+        handle_reset_game(self);
     }
 
     fn update_menu(&mut self) {

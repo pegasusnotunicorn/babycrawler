@@ -11,9 +11,13 @@ pub fn handle_input(state: &mut GameState) {
     handle_card_drag(state, &pointer, pointer_xy);
     handle_play_area_buttons(state, &pointer);
     handle_tile_selection(state, &pointer, pointer_xy);
+    handle_reset_game(state);
+}
 
+pub fn handle_reset_game(state: &mut GameState) {
     let gp = gamepad::get(0);
     if gp.a.just_pressed() {
         send_reset_game();
+        *state = GameState::new();
     }
 }
