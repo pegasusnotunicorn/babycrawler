@@ -107,6 +107,13 @@ pub fn broadcast_fireball_hit_result(
     });
 }
 
+pub fn broadcast_player_damage_from_monster(player_id: &str, damage_dealt: u32) {
+    broadcast_generic(ServerToClient::PlayerDamageFromMonster {
+        player_id: player_id.to_string(),
+        damage_dealt,
+    });
+}
+
 pub fn broadcast_game_over(winner_ids: &[String], loser_ids: &[String]) {
     broadcast_generic(ServerToClient::GameOver {
         winner_ids: winner_ids.to_vec(),

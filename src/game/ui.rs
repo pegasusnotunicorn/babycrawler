@@ -152,12 +152,14 @@ pub fn draw_waiting_for_players(_game_state: &crate::GameState) {
 }
 
 /// Draws the game over screen with winner/loser information
-pub fn draw_game_over_screen(winner_id: &str, current_user_id: &str, frame: usize) {
+pub fn draw_game_over_screen(winner_id: &str, frame: usize) {
     draw_menu(true, frame);
     let canvas_bounds = bounds::screen();
     let canvas_width = canvas_bounds.w();
     let canvas_height = canvas_bounds.h();
-    let is_winner = current_user_id == winner_id;
+
+    // Check if this is a cooperative victory (both players win)
+    let is_cooperative_victory = winner_id.contains("Player") || winner_id.contains("player");
 
     // Draw main game over box using draw_text_box
     let box_width = canvas_width - GAME_PADDING * 2;
@@ -166,12 +168,12 @@ pub fn draw_game_over_screen(winner_id: &str, current_user_id: &str, frame: usiz
     let box_y = (canvas_height - box_height * 2 - GAME_PADDING * 2) as f32;
 
     // Draw title
-    let title = if is_winner {
+    let title = if is_cooperative_victory {
         "CONGRATULATIONS!\n\nYOU HAVE DEFEATED THE MONSTER!"
     } else {
-        "OH NO, GAMEOVER!\n\nYOU HAVE DIED!"
+        "OH NO, GAMEOVER!\n\nYOU HAVE BEEN EATEN BY THE MONSTER!"
     };
-    let fill_color = if is_winner { 0x118811ff } else { 0xff2222ff };
+    let fill_color = if is_cooperative_victory { 0x118811ff } else { 0xff2222ff };
 
     draw_text_box(
         box_x,

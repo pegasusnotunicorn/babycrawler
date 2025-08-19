@@ -9,14 +9,14 @@ pub const FONT_HEIGHT: u32 = 12;
 pub const GAME_PADDING: u32 = 16;
 
 // Tile random generation
-// pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
-// pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
-// pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
-// pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
-pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 0.0;
-pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 0.0;
-pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 0.0;
-pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 1.0;
+pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;
+pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 2.0;
+pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 2.0;
+pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 0.25;
+// pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 0.0;
+// pub const ENTRANCE_COUNT_WEIGHT_2: f32 = 0.0;
+// pub const ENTRANCE_COUNT_WEIGHT_3: f32 = 0.0;
+// pub const ENTRANCE_COUNT_WEIGHT_4: f32 = 1.0;
 
 // Card colors
 pub const CARD_DUMMY_COLOR: u32 = 0xffffff25;
@@ -35,4 +35,5 @@ pub const GAME_CHANNEL: &str = "GLOBAL";
 // Damage
 pub const PLAYER_HEALTH: u32 = 3;
 pub const MONSTER_HEALTH: u32 = 5;
+pub const MONSTER_DAMAGE: u32 = 1;
 pub const FIREBALL_DAMAGE: u32 = 1;

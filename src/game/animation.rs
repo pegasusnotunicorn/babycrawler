@@ -533,6 +533,9 @@ pub fn update_fireball_animations(state: &mut GameState) {
 
     // Get local player ID before the loop to avoid borrowing issues
     let local_player_id = state.get_local_player().map(|p| p.id.clone());
+    let local_player_tile_index = state
+        .get_local_player()
+        .map(|p| Tile::index(p.position.0, p.position.1));
 
     for (i, anim) in state.animated_fireballs.iter_mut().enumerate() {
         if anim.animating {
@@ -635,13 +638,6 @@ pub fn update_fireball_animations(state: &mut GameState) {
 
             if hit_wall || player_hit.is_some() || monster_hit.is_some() {
                 if let Some(player_index) = player_hit {
-                    log!(
-                        "🔥 [ANIMATION] Fireball {} hit player {} at {:?}",
-                        anim.fireball_id,
-                        player_index,
-                        anim.current_pos
-                    );
-
                     // Only send the hit to the server if I'm the one who shot this fireball
                     if
                         let Some(fireball) = state.fireballs
@@ -651,22 +647,29 @@ pub fn update_fireball_animations(state: &mut GameState) {
                         // Check if the local player is the shooter
                         if let Some(ref local_id) = local_player_id {
                             if fireball.shooter_id == *local_id {
-                                // Send FireballHit message to server
-                                send_fireball_hit(
-                                    state.user.clone(),
-                                    anim.current_tile_index,
-                                    fireball.direction
-                                );
+                                let player_tile_index = local_player_tile_index;
+
+                                if let Some(player_tile_index) = player_tile_index {
+                                    log!(
+                                        "🔥 [ANIMATION] Fireball {} hit player {} at {:?}",
+                                        anim.fireball_id,
+                                        player_index,
+                                        player_tile_index
+                                    );
+                                    send_fireball_hit(state.user.clone(), player_tile_index);
+                                }
                             }
                         }
                     }
                 }
 
                 if let Some(monster_pos) = monster_hit {
+                    let monster_tile_index = Tile::index(monster_pos.0, monster_pos.1);
+
                     log!(
                         "🔥 [ANIMATION] Fireball {} hit monster at {:?}",
                         anim.fireball_id,
-                        monster_pos
+                        monster_tile_index
                     );
 
                     // Send FireballHit message to server for monster damage
@@ -678,11 +681,7 @@ pub fn update_fireball_animations(state: &mut GameState) {
                         // Check if the local player is the shooter
                         if let Some(ref local_id) = local_player_id {
                             if fireball.shooter_id == *local_id {
-                                send_fireball_hit(
-                                    state.user.clone(),
-                                    anim.current_tile_index,
-                                    fireball.direction
-                                );
+                                send_fireball_hit(state.user.clone(), monster_tile_index);
                             }
                         }
                     }

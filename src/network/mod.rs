@@ -34,8 +34,7 @@ pub enum ClientToServer {
     },
     FireballHit {
         shooter_id: String,
-        from_tile_index: usize,
-        direction: crate::game::map::tile::Direction,
+        hit_tile_index: usize,
     },
 }
 

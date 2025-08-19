@@ -1,4 +1,5 @@
-use crate::game::{ constants::MONSTER_HEALTH, map::tile::Tile };
+use crate::game::{ constants::{ MONSTER_HEALTH, MONSTER_DAMAGE }, map::{ tile::Tile, Player } };
+use crate::server::broadcast::broadcast_player_damage_from_monster;
 use turbo::{ borsh::{ BorshDeserialize, BorshSerialize }, * };
 use serde::{ Serialize, Deserialize };
 
@@ -20,6 +21,7 @@ pub struct Monster {
     pub animation_frame: usize,
     pub animation_timer: f32,
     pub is_moving: bool,
+    pub damage: u32,
 }
 
 impl Monster {
@@ -37,6 +39,7 @@ impl Monster {
             animation_frame: 0,
             animation_timer: 0.0,
             is_moving: false,
+            damage: MONSTER_DAMAGE,
         }
     }
 
@@ -197,5 +200,77 @@ impl Monster {
                 );
             }
         }
+    }
+
+    pub fn take_turn(&mut self, players: &mut [Player]) {
+        if !self.is_alive() {
+            return;
+        }
+
+        // First, find the nearest player and get their info without borrowing mutably
+        let nearest_player_info = self.find_nearest_player_info(players);
+
+        if let Some((player_index, player_pos)) = nearest_player_info {
+            let direction = self.calculate_direction_towards(player_pos);
+            let new_pos = self.move_in_direction(direction);
+
+            // Check if new position is valid and not occupied
+            if self.is_valid_position(new_pos) && !self.is_position_occupied(players, new_pos) {
+                self.position = new_pos;
+            }
+
+            // if the new position is the same as the player's position, deal damage to the player
+            if new_pos == player_pos {
+                if let Some(player) = players.get_mut(player_index) {
+                    player.take_damage(self.damage);
+                    broadcast_player_damage_from_monster(&player.id.to_string(), self.damage);
+                }
+            }
+        }
+    }
+
+    /// Find the nearest player to the monster (returns index and position, not reference)
+    fn find_nearest_player_info(&self, players: &[Player]) -> Option<(usize, (usize, usize))> {
+        players
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, player)| {
+                let dx = (player.position.0 as i32) - (self.position.0 as i32);
+                let dy = (player.position.1 as i32) - (self.position.1 as i32);
+                dx * dx + dy * dy // Manhattan distance squared
+            })
+            .map(|(index, player)| (index, player.position))
+    }
+
+    /// Calculate direction towards target position
+    fn calculate_direction_towards(&self, target: (usize, usize)) -> Direction {
+        let dx = (target.0 as i32) - (self.position.0 as i32);
+        let dy = (target.1 as i32) - (self.position.1 as i32);
+
+        if dx.abs() > dy.abs() {
+            if dx > 0 { Direction::Right } else { Direction::Left }
+        } else {
+            if dy > 0 { Direction::Down } else { Direction::Up }
+        }
+    }
+
+    /// Move in the given direction
+    fn move_in_direction(&self, direction: Direction) -> (usize, usize) {
+        match direction {
+            Direction::Up => (self.position.0, self.position.1.saturating_sub(1)),
+            Direction::Down => (self.position.0, (self.position.1 + 1).min(4)),
+            Direction::Left => (self.position.0.saturating_sub(1), self.position.1),
+            Direction::Right => ((self.position.0 + 1).min(4), self.position.1),
+        }
+    }
+
+    /// Check if position is within bounds
+    fn is_valid_position(&self, pos: (usize, usize)) -> bool {
+        pos.0 < 5 && pos.1 < 5
+    }
+
+    /// Check if position is occupied by a player
+    fn is_position_occupied(&self, players: &[Player], pos: (usize, usize)) -> bool {
+        players.iter().any(|player| player.position == pos)
     }
 }

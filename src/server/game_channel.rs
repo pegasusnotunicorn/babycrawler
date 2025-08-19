@@ -138,8 +138,8 @@ impl os::server::channel::ChannelHandler for GameChannel {
             ClientToServer::FireballShot { target_tile, direction } => {
                 handle_fireball_shot(self, user_id, target_tile, direction);
             }
-            ClientToServer::FireballHit { shooter_id, from_tile_index, direction } => {
-                handle_fireball_hit(self, &shooter_id, from_tile_index, direction);
+            ClientToServer::FireballHit { shooter_id, hit_tile_index: from_tile_index } => {
+                handle_fireball_hit(self, &shooter_id, from_tile_index);
             }
         }
         Ok(())

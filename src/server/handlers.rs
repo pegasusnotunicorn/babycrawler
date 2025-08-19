@@ -15,7 +15,6 @@ use crate::server::broadcast::{
 use crate::game::cards::card::Card;
 use crate::game::constants::{ DEBUG_MODE, HAND_SIZE, FIREBALL_DAMAGE };
 use crate::game::map::player::Player;
-use crate::game::map::player::PlayerId;
 
 /// Helper function to get the player index for a given user_id
 fn get_player_index(channel: &GameChannel, user_id: &str) -> Option<usize> {
@@ -54,6 +53,19 @@ pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
     }
 
     give_player_new_hand(channel, user_id);
+
+    // Monster takes its turn after player
+    if let Some(monster) = &mut channel.board_monster {
+        monster.take_turn(&mut channel.board_players);
+    }
+
+    // check for game over
+    for player in &channel.board_players {
+        if player.health <= 0 {
+            broadcast_game_over(&[], &channel.players); // Empty winners, all players are losers
+            return; // Exit early since game is over
+        }
+    }
 
     channel.current_turn_index = (channel.current_turn_index + 1) % channel.players.len();
 
@@ -301,15 +313,12 @@ pub fn handle_fireball_shot(
     broadcast_fireball_shot(user_id, target_tile, &direction);
 }
 
-pub fn handle_fireball_hit(
-    channel: &mut GameChannel,
-    shooter_id: &str,
-    from_tile_index: usize,
-    _direction: crate::game::map::tile::Direction
-) {
+pub fn handle_fireball_hit(channel: &mut GameChannel, shooter_id: &str, hit_tile_index: usize) {
     // Convert tile index to position coordinates
-    let from_position = (from_tile_index % 5, from_tile_index / 5);
-    let hit_position = from_position;
+    let hit_position = (hit_tile_index % 5, hit_tile_index / 5);
+
+    log!("monster position: {:?}", channel.board_monster.as_ref().unwrap().position);
+    log!("hit position: {:?}", hit_position);
 
     // Find the monster at the hit position
     if let Some(monster) = &mut channel.board_monster {
@@ -370,36 +379,17 @@ pub fn handle_fireball_hit(
         return;
     }
 
-    // Apply damage
     let damage_dealt = FIREBALL_DAMAGE;
-    let player_id = target_player.id.clone(); // Clone the ID before mutable borrow
-
     if let Some(player_mut) = channel.board_players.get_mut(target_player_index) {
         player_mut.take_damage(damage_dealt);
         log!("[GameChannel] Player {} took {} damage from fireball", player_mut.id, damage_dealt);
 
         // Check for game over
         if player_mut.health <= 0 {
-            handle_player_death(channel, player_id);
+            broadcast_game_over(&[], &channel.players);
         }
     }
 
     // Broadcast the hit result
     broadcast_fireball_hit_result(shooter_id, &target_user_id, &damage_dealt, None);
-}
-
-/// Handle player death and determine winner
-fn handle_player_death(channel: &mut GameChannel, dead_player_id: PlayerId) {
-    // Get the winner and loser user IDs
-    let winner_user_id = match dead_player_id {
-        PlayerId::Player1 => channel.get_user_id(&PlayerId::Player2),
-        PlayerId::Player2 => channel.get_user_id(&PlayerId::Player1),
-    };
-
-    let loser_user_id = channel.get_user_id(&dead_player_id);
-
-    if let (Some(winner), Some(loser)) = (winner_user_id, loser_user_id) {
-        log!("[GameChannel] Player {} wins the game!", winner);
-        broadcast_game_over(&[winner.clone()], &[loser.clone()]);
-    }
 }

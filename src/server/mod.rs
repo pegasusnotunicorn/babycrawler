@@ -53,6 +53,10 @@ pub enum ServerToClient {
         damage_dealt: u32,
         monster_damage: Option<u32>, // Optional monster damage if fireball hit monster
     },
+    PlayerDamageFromMonster {
+        player_id: String,
+        damage_dealt: u32,
+    },
     GameOver {
         winner_ids: Vec<String>,
         loser_ids: Vec<String>,

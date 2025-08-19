@@ -36,6 +36,7 @@ use crate::network::receive::{
     receive_tiles_swapped,
     receive_fireball_shot,
     receive_fireball_hit_result,
+    receive_player_damage_from_monster,
     receive_game_over,
 };
 
@@ -257,6 +258,9 @@ impl GameState {
                             monster_damage
                         );
                     }
+                    ServerToClient::PlayerDamageFromMonster { player_id, damage_dealt } => {
+                        receive_player_damage_from_monster(self, &player_id, damage_dealt);
+                    }
                     ServerToClient::GameOver { winner_ids, loser_ids } => {
                         receive_game_over(self, &winner_ids, &loser_ids);
                     }
@@ -273,7 +277,7 @@ impl GameState {
 
     fn update_game_over(&mut self, winner_id: &str) {
         // Draw the game over screen using our UI function
-        draw_game_over_screen(winner_id, &self.user, self.frame);
+        draw_game_over_screen(winner_id, self.frame);
 
         // Allow players to return to menu
         if gamepad::get(0).start.just_pressed() {

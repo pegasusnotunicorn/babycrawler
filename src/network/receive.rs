@@ -251,19 +251,25 @@ pub fn receive_fireball_hit_result(
     game_state.animated_fireballs.clear();
 }
 
+pub fn receive_player_damage_from_monster(
+    game_state: &mut GameState,
+    player_id: &str,
+    damage_dealt: u32
+) {
+    log!("📨 [RECEIVE] Player {} took {} damage from monster", player_id, damage_dealt);
+    if let Some(player) = game_state.get_player_by_user_id(player_id) {
+        player.take_damage(damage_dealt);
+    }
+}
+
 pub fn receive_game_over(game_state: &mut GameState, winner_ids: &[String], loser_ids: &[String]) {
     if winner_ids.len() > 1 {
         log!("🏆 [RECEIVE] Game Over! Both players win! (Cooperative victory)");
         // For cooperative victory, use the first winner ID for the game over screen
         game_state.game_over(&winner_ids[0]);
-    } else if winner_ids.len() == 1 && loser_ids.len() == 1 {
-        log!("🏆 [RECEIVE] Game Over! Winner: {}, Loser: {}", winner_ids[0], loser_ids[0]);
-        game_state.game_over(&winner_ids[0]);
-    } else {
-        log!("🏆 [RECEIVE] Game Over! Winners: {:?}, Losers: {:?}", winner_ids, loser_ids);
-        // Default to first winner if available
-        if let Some(winner) = winner_ids.first() {
-            game_state.game_over(winner);
-        }
+    } else if winner_ids.is_empty() && loser_ids.len() > 1 {
+        log!("💀 [RECEIVE] Game Over! Both players lose!");
+        // For cooperative loss, use the first loser ID for the game over screen
+        game_state.game_over(&loser_ids[0]);
     }
 }
