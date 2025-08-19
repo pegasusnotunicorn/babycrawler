@@ -7,6 +7,7 @@ pub mod receive;
 
 #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
 pub enum ClientToServer {
+    ResetGame,
     EndTurn,
     SelectCard {
         hand_index: usize,
@@ -43,6 +44,7 @@ pub enum ServerToClient {
     ConnectedUsers {
         users: Vec<String>,
     },
+    ResetGame,
     BoardState {
         tiles: Vec<crate::game::map::tile::Tile>,
         players: Vec<crate::game::map::player::Player>,

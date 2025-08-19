@@ -14,6 +14,7 @@ pub enum ServerToClient {
     ConnectedUsers {
         users: Vec<String>,
     },
+    ResetGame,
     BoardState {
         tiles: Vec<Tile>,
         players: Vec<Player>,

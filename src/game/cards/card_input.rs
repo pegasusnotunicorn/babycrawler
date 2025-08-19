@@ -96,13 +96,6 @@ pub fn handle_card_drag(
                         if card.is_dummy() {
                             return; // Don't allow dragging dummy cards
                         }
-
-                        log!(
-                            "🔍 [DRAG] Creating AnimatedCard with card: {:?}, hand_index: {:?}",
-                            card.name,
-                            card.hand_index
-                        );
-
                         player.hand[idx] = Card::dummy_card();
                         let origin_pos = get_hand_slot_pos(&hand_row, idx);
                         dragged = Some(AnimatedCard {

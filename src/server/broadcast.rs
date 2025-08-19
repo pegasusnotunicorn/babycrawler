@@ -11,6 +11,10 @@ pub fn broadcast_generic<T: Serialize + BorshSerialize>(msg: T) {
     }
 }
 
+pub fn broadcast_reset_game() {
+    broadcast_generic(ServerToClient::ResetGame);
+}
+
 pub fn broadcast_turn(
     players: &[String],
     current_turn_index: usize,

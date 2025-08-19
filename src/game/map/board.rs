@@ -20,29 +20,41 @@ pub fn random_tiles(count: usize) -> Vec<Tile> {
             if x == MAP_SIZE - 1 {
                 forbidden.push(Direction::Right);
             }
-            let mut tile = Tile::random(&forbidden);
-            // Set the original location for this tile
-            tile.original_location = i;
-            // Ensure at least one entrance remains (should be handled by Tile::random)
-            if tile.entrances.is_empty() {
-                let mut possible = vec![];
-                if y > 0 {
-                    possible.push(Direction::Up);
+
+            let tile = if i == 12 {
+                // Monster spawn tile (center) - always create a 4-entrance tile
+                let mut center_tile = Tile::new(
+                    vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right]
+                );
+                center_tile.original_location = i;
+                center_tile
+            } else {
+                let mut tile = Tile::random(&forbidden);
+                // Set the original location for this tile
+                tile.original_location = i;
+                // Ensure at least one entrance remains (should be handled by Tile::random)
+                if tile.entrances.is_empty() {
+                    let mut possible = vec![];
+                    if y > 0 {
+                        possible.push(Direction::Up);
+                    }
+                    if y < MAP_SIZE - 1 {
+                        possible.push(Direction::Down);
+                    }
+                    if x > 0 {
+                        possible.push(Direction::Left);
+                    }
+                    if x < MAP_SIZE - 1 {
+                        possible.push(Direction::Right);
+                    }
+                    if !possible.is_empty() {
+                        let idx = (random::u32() as usize) % possible.len();
+                        tile.entrances.push(possible[idx]);
+                    }
                 }
-                if y < MAP_SIZE - 1 {
-                    possible.push(Direction::Down);
-                }
-                if x > 0 {
-                    possible.push(Direction::Left);
-                }
-                if x < MAP_SIZE - 1 {
-                    possible.push(Direction::Right);
-                }
-                if !possible.is_empty() {
-                    let idx = (random::u32() as usize) % possible.len();
-                    tile.entrances.push(possible[idx]);
-                }
-            }
+                tile
+            };
+
             tile
         })
         .collect()

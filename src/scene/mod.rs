@@ -23,6 +23,7 @@ pub enum Scene {
     Menu,
     Game,
     GameOver {
-        winner_id: String,
+        winner_ids: Vec<String>,
+        loser_ids: Vec<String>,
     },
 }

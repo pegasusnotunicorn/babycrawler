@@ -1,6 +1,7 @@
 use turbo::*;
 use crate::game::cards::card_effect::CardEffect;
 use crate::server::{ GameChannel, CurrentTurn };
+use crate::PlayerId;
 use crate::server::broadcast::{
     broadcast_board_state,
     broadcast_card_cancelled,
@@ -11,10 +12,13 @@ use crate::server::broadcast::{
     broadcast_fireball_shot,
     broadcast_fireball_hit_result,
     broadcast_game_over,
+    broadcast_reset_game,
 };
 use crate::game::cards::card::Card;
-use crate::game::constants::{ DEBUG_MODE, HAND_SIZE, FIREBALL_DAMAGE };
+use crate::game::constants::{ DEBUG_MODE, HAND_SIZE, FIREBALL_DAMAGE, MAP_SIZE };
 use crate::game::map::player::Player;
+use crate::game::map::board::random_tiles;
+use crate::game::map::monster::Monster;
 
 /// Helper function to get the player index for a given user_id
 fn get_player_index(channel: &GameChannel, user_id: &str) -> Option<usize> {
@@ -43,6 +47,46 @@ pub fn give_player_new_hand(channel: &mut GameChannel, user_id: &str) {
     }
 }
 
+pub fn handle_reset_game(channel: &mut GameChannel) {
+    log!("🚀 [HANDLE] Resetting game...");
+
+    channel.board_tiles = random_tiles(MAP_SIZE * MAP_SIZE);
+    channel.board_players = vec![
+        Player::new(PlayerId::Player1, 0, 0, HAND_SIZE, false),
+        Player::new(PlayerId::Player2, MAP_SIZE - 1, MAP_SIZE - 1, HAND_SIZE, false)
+    ];
+    channel.board_monster = Some(Monster::new());
+    channel.current_turn_index = 0;
+    channel.current_turn = None;
+
+    let player_ids: Vec<String> = channel.players.clone();
+    for player_id in &player_ids {
+        give_player_new_hand(channel, player_id);
+    }
+
+    // Start the game by broadcasting reset and then the first turn
+    if channel.players.len() == 2 {
+        broadcast_reset_game();
+
+        // Set up the first turn
+        if let Some(user_id) = channel.players.get(channel.current_turn_index) {
+            channel.current_turn = Some(CurrentTurn {
+                player_id: user_id.clone(),
+                selected_card: None,
+                selected_card_index: 0,
+            });
+        }
+
+        // Broadcast the new board state
+        broadcast_board_state(
+            &channel.board_tiles,
+            &channel.board_players,
+            &channel.board_monster,
+            &channel.current_turn
+        );
+    }
+}
+
 pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
     if let Some(turn) = &channel.current_turn {
         if turn.player_id == user_id && turn.selected_card.is_some() {
@@ -56,7 +100,7 @@ pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
 
     // Monster takes its turn after player
     if let Some(monster) = &mut channel.board_monster {
-        monster.take_turn(&mut channel.board_players);
+        monster.take_turn(&mut channel.board_players, &channel.board_tiles);
     }
 
     // check for game over

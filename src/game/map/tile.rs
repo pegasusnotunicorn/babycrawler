@@ -286,8 +286,31 @@ impl Tile {
     }
 
     /// Check if this tile is connected to an adjacent tile in the given direction
-    /// Returns true if both tiles have entrances that connect to each other
-    pub fn is_connected_in_direction(&self, direction: Direction, adjacent_tile: &Tile) -> bool {
+    /// Returns true if both tiles are adjacent AND have entrances that connect to each other
+    pub fn is_connected_in_direction(
+        &self,
+        direction: Direction,
+        adjacent_tile: &Tile,
+        self_pos: (usize, usize),
+        other_pos: (usize, usize)
+    ) -> bool {
+        // First check if the tiles are actually adjacent
+        let dx = (self_pos.0 as i32) - (other_pos.0 as i32);
+        let dy = (self_pos.1 as i32) - (other_pos.1 as i32);
+
+        // Check if tiles are adjacent in the specified direction
+        let is_adjacent = match direction {
+            Direction::Up => dx == 0 && dy == 1, // Other tile is above (y+1)
+            Direction::Down => dx == 0 && dy == -1, // Other tile is below (y-1)
+            Direction::Left => dx == 1 && dy == 0, // Other tile is to the left (x+1)
+            Direction::Right => dx == -1 && dy == 0, // Other tile is to the right (x-1)
+        };
+
+        if !is_adjacent {
+            return false;
+        }
+
+        // Now check if the entrances connect
         match direction {
             Direction::Up => {
                 self.entrances.contains(&Direction::Up) &&
@@ -633,7 +656,12 @@ impl Tile {
         }
 
         let next_tile = &tiles[next_tile_index];
-        !self.is_connected_in_direction(direction, next_tile)
+        !self.is_connected_in_direction(
+            direction,
+            next_tile,
+            (tile_x, tile_y),
+            Tile::position(next_tile_index)
+        )
     }
 
     /// Check if a fireball has reached the far edge of a tile when moving in a given direction

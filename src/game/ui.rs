@@ -152,14 +152,11 @@ pub fn draw_waiting_for_players(_game_state: &crate::GameState) {
 }
 
 /// Draws the game over screen with winner/loser information
-pub fn draw_game_over_screen(winner_id: &str, frame: usize) {
+pub fn draw_game_over_screen(winner_ids: &[String], loser_ids: &[String], frame: usize) {
     draw_menu(true, frame);
     let canvas_bounds = bounds::screen();
     let canvas_width = canvas_bounds.w();
     let canvas_height = canvas_bounds.h();
-
-    // Check if this is a cooperative victory (both players win)
-    let is_cooperative_victory = winner_id.contains("Player") || winner_id.contains("player");
 
     // Draw main game over box using draw_text_box
     let box_width = canvas_width - GAME_PADDING * 2;
@@ -167,13 +164,17 @@ pub fn draw_game_over_screen(winner_id: &str, frame: usize) {
     let box_x = GAME_PADDING as f32;
     let box_y = (canvas_height - box_height * 2 - GAME_PADDING * 2) as f32;
 
-    // Draw title
-    let title = if is_cooperative_victory {
-        "CONGRATULATIONS!\n\nYOU HAVE DEFEATED THE MONSTER!"
+    // Determine title and color based on game outcome
+    let (title, fill_color) = if !winner_ids.is_empty() && loser_ids.is_empty() {
+        // Cooperative victory (both players win)
+        ("VICTORY!\n\nYou defeated the monster together!", 0x118811ff)
+    } else if winner_ids.is_empty() && !loser_ids.is_empty() {
+        // Cooperative loss (both players lose)
+        ("DEFEAT\n\nYou were defeated by the monster", 0xff2222ff)
     } else {
-        "OH NO, GAMEOVER!\n\nYOU HAVE BEEN EATEN BY THE MONSTER!"
+        // Fallback for unexpected states
+        ("GAME OVER", 0x888888ff)
     };
-    let fill_color = if is_cooperative_victory { 0x118811ff } else { 0xff2222ff };
 
     draw_text_box(
         box_x,

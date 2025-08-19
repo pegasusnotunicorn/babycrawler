@@ -13,6 +13,7 @@ use crate::GameState;
 use crate::game::map::clear_highlights;
 use crate::game::map::fireball::Fireball;
 use crate::game::map::tile::Tile;
+use crate::game::constants::HAND_SIZE;
 
 pub fn receive_connected_users(game_state: &mut GameState, users: Vec<String>) {
     log!("📨 [RECEIVE] Connected users: {:?}", users);
@@ -263,13 +264,35 @@ pub fn receive_player_damage_from_monster(
 }
 
 pub fn receive_game_over(game_state: &mut GameState, winner_ids: &[String], loser_ids: &[String]) {
-    if winner_ids.len() > 1 {
-        log!("🏆 [RECEIVE] Game Over! Both players win! (Cooperative victory)");
-        // For cooperative victory, use the first winner ID for the game over screen
-        game_state.game_over(&winner_ids[0]);
+    if winner_ids.len() > 1 && loser_ids.is_empty() {
+        log!("🏆 [RECEIVE] Game Over! Both players win: {:?}", winner_ids);
+        // Both players defeated the monster together
+        game_state.game_over_cooperative(winner_ids, &[]);
     } else if winner_ids.is_empty() && loser_ids.len() > 1 {
-        log!("💀 [RECEIVE] Game Over! Both players lose!");
-        // For cooperative loss, use the first loser ID for the game over screen
-        game_state.game_over(&loser_ids[0]);
+        log!("💀 [RECEIVE] Game Over! Both players lose: {:?}", loser_ids);
+        // Both players were defeated by the monster
+        game_state.game_over_cooperative(&[], loser_ids);
+    } else {
+        log!(
+            "❓ [RECEIVE] Game Over! Unexpected state - winners: {:?}, losers: {:?}",
+            winner_ids,
+            loser_ids
+        );
+        game_state.game_over_cooperative(&[], &["Error".to_string()]);
     }
+}
+
+pub fn receive_reset_game(game_state: &mut GameState) {
+    log!("🔄 [RECEIVE] Game reset received");
+    game_state.animated_card = None;
+    game_state.animated_player = None;
+    game_state.animated_tiles.clear();
+    game_state.animated_fireballs.clear();
+    game_state.fireballs.clear();
+    game_state.selected_card = None;
+    game_state.swap_tiles_selected.clear();
+    game_state.pending_swaps.clear();
+    game_state.reset_turn();
+    game_state.play_area.clear();
+    game_state.play_area = vec![Card::dummy_card(); HAND_SIZE];
 }

@@ -114,6 +114,9 @@ impl os::server::channel::ChannelHandler for GameChannel {
 
     fn on_data(&mut self, user_id: &str, data: Self::Recv) -> Result<(), std::io::Error> {
         match data {
+            ClientToServer::ResetGame => {
+                handle_reset_game(self);
+            }
             ClientToServer::EndTurn => {
                 handle_end_turn(self, user_id);
             }

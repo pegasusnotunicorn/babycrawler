@@ -4,6 +4,14 @@ use crate::server::GameChannel;
 use crate::game::constants::GAME_CHANNEL;
 use super::ClientToServer;
 
+pub fn send_reset_game() {
+    log!("🚀 [SEND] Reset game");
+    let msg = ClientToServer::ResetGame;
+    if let Some(conn) = GameChannel::subscribe(GAME_CHANNEL) {
+        let _ = conn.send(&msg);
+    }
+}
+
 pub fn send_card_selection(hand_index: usize) {
     log!("🚀 [SEND] Card selection at hand index: {}", hand_index);
     let msg = ClientToServer::SelectCard { hand_index };

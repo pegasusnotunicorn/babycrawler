@@ -38,6 +38,7 @@ use crate::network::receive::{
     receive_fireball_hit_result,
     receive_player_damage_from_monster,
     receive_game_over,
+    receive_reset_game,
 };
 
 use turbo::{ os, gamepad, bounds, * };
@@ -168,11 +169,13 @@ impl GameState {
         fill_with_dummies(&mut self.play_area, HAND_SIZE);
     }
 
-    pub fn game_over(&mut self, winner_id: &str) {
+    pub fn game_over_cooperative(&mut self, winner_ids: &[String], loser_ids: &[String]) {
         self.reset_turn();
         self.players = Vec::new();
+
         self.scene = Scene::GameOver {
-            winner_id: winner_id.to_string(),
+            winner_ids: winner_ids.to_vec(),
+            loser_ids: loser_ids.to_vec(),
         };
     }
 
@@ -186,9 +189,10 @@ impl GameState {
         match &self.scene {
             Scene::Menu => self.update_menu(),
             Scene::Game => self.update_game(),
-            Scene::GameOver { winner_id } => {
-                let winner = winner_id.clone();
-                self.update_game_over(&winner);
+            Scene::GameOver { winner_ids, loser_ids } => {
+                let winner_ids = winner_ids.clone();
+                let loser_ids = loser_ids.clone();
+                self.update_game_over_cooperative(&winner_ids, &loser_ids);
             }
         }
         draw_debug(self);
@@ -215,6 +219,10 @@ impl GameState {
                 match msg {
                     ServerToClient::ConnectedUsers { users } => {
                         receive_connected_users(self, users);
+                    }
+
+                    ServerToClient::ResetGame => {
+                        receive_reset_game(self);
                     }
 
                     ServerToClient::BoardState { tiles, players, monster, current_turn } => {
@@ -275,9 +283,9 @@ impl GameState {
         }
     }
 
-    fn update_game_over(&mut self, winner_id: &str) {
+    fn update_game_over_cooperative(&mut self, winner_ids: &[String], loser_ids: &[String]) {
         // Draw the game over screen using our UI function
-        draw_game_over_screen(winner_id, self.frame);
+        draw_game_over_screen(winner_ids, loser_ids, self.frame);
 
         // Allow players to return to menu
         if gamepad::get(0).start.just_pressed() {
