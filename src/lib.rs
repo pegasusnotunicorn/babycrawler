@@ -7,7 +7,7 @@ mod network;
 use crate::game::map::{ draw_board, clear_highlights };
 use crate::game::constants::{ DEBUG_MODE, GAME_PADDING, HAND_SIZE, MAP_SIZE, GAME_CHANNEL };
 use crate::game::inputs::handle_input;
-use crate::game::map::{ Player, PlayerId };
+use crate::game::map::{ Player, PlayerId, Monster };
 use crate::game::map::Tile;
 use crate::game::ui::{
     draw_turn_label,
@@ -59,6 +59,7 @@ pub struct GameState {
     pub frame: usize,
     pub tiles: Vec<Tile>,
     pub players: Vec<Player>,
+    pub monster: Option<Monster>,
     pub selected_card: Option<Card>,
     pub scene: Scene, // Track current scene (menu or game)
     pub user: String, // This client's user id
@@ -83,6 +84,7 @@ impl GameState {
             frame: 0,
             tiles: Vec::new(),
             players: Vec::new(),
+            monster: None,
             selected_card: None,
             scene: Scene::Menu, // Start in menu scene
             user: String::new(), // Will be set on connect
@@ -214,8 +216,8 @@ impl GameState {
                         receive_connected_users(self, users);
                     }
 
-                    ServerToClient::BoardState { tiles, players, current_turn } => {
-                        receive_board_state(self, tiles, players, current_turn);
+                    ServerToClient::BoardState { tiles, players, monster, current_turn } => {
+                        receive_board_state(self, tiles, players, monster, current_turn);
                     }
 
                     ServerToClient::CardCancelled { card, player_id } => {
@@ -241,11 +243,22 @@ impl GameState {
                     ServerToClient::FireballShot { player_id, tile_index, direction } => {
                         receive_fireball_shot(self, &player_id, &tile_index, &direction);
                     }
-                    ServerToClient::FireballHit { player_id, target_id, damage_dealt } => {
-                        receive_fireball_hit_result(self, &player_id, &target_id, &damage_dealt);
+                    ServerToClient::FireballHit {
+                        player_id,
+                        target_id,
+                        damage_dealt,
+                        monster_damage,
+                    } => {
+                        receive_fireball_hit_result(
+                            self,
+                            &player_id,
+                            &target_id,
+                            &damage_dealt,
+                            monster_damage
+                        );
                     }
-                    ServerToClient::GameOver { winner_id, loser_id } => {
-                        receive_game_over(self, &winner_id, &loser_id);
+                    ServerToClient::GameOver { winner_ids, loser_ids } => {
+                        receive_game_over(self, &winner_ids, &loser_ids);
                     }
                 }
             }

@@ -1,4 +1,4 @@
-use crate::game::map::{ Tile, Player };
+use crate::game::map::{ Tile, Player, Monster };
 use crate::game::cards::card::Card;
 use serde::{ Serialize, Deserialize };
 use borsh::{ BorshSerialize, BorshDeserialize };
@@ -17,6 +17,7 @@ pub enum ServerToClient {
     BoardState {
         tiles: Vec<Tile>,
         players: Vec<Player>,
+        monster: Option<Monster>,
         current_turn: Option<CurrentTurn>,
     },
     CardCancelled {
@@ -50,9 +51,10 @@ pub enum ServerToClient {
         player_id: String,
         target_id: String,
         damage_dealt: u32,
+        monster_damage: Option<u32>, // Optional monster damage if fireball hit monster
     },
     GameOver {
-        winner_id: String,
-        loser_id: String,
+        winner_ids: Vec<String>,
+        loser_ids: Vec<String>,
     },
 }

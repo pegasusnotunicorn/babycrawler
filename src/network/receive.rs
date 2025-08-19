@@ -42,6 +42,7 @@ pub fn receive_board_state(
     game_state: &mut GameState,
     tiles: Vec<crate::game::map::Tile>,
     players: Vec<crate::game::map::Player>,
+    monster: Option<crate::game::map::Monster>,
     current_turn: Option<crate::server::CurrentTurn>
 ) {
     log!("📨 [RECEIVE] Board state, current_turn: {:?}", current_turn);
@@ -65,6 +66,7 @@ pub fn receive_board_state(
     // Update game state
     game_state.tiles = tiles;
     game_state.players = players;
+    game_state.monster = monster;
     game_state.current_turn = current_turn.clone();
 }
 
@@ -220,15 +222,26 @@ pub fn receive_fireball_hit_result(
     game_state: &mut GameState,
     player_id: &str,
     target_id: &str,
-    damage_dealt: &u32
+    damage_dealt: &u32,
+    monster_damage: Option<u32>
 ) {
     log!(
-        "📨 [RECEIVE] Fireball hit result: player={}, target={:?}, damage={}",
+        "📨 [RECEIVE] Fireball hit result: player={}, target={:?}, damage={}, monster_damage={:?}",
         player_id,
         target_id,
-        damage_dealt
+        damage_dealt,
+        monster_damage
     );
 
+    // Handle monster damage if present
+    if let Some(damage) = monster_damage {
+        if let Some(monster) = &mut game_state.monster {
+            log!("📨 [RECEIVE] Monster took {} damage from fireball", damage);
+            monster.take_damage(damage);
+        }
+    }
+
+    // Handle player damage if target is a player
     if let Some(player) = game_state.get_player_by_user_id(target_id) {
         log!("📨 [RECEIVE] Player {} took {} damage from fireball", target_id, damage_dealt);
         player.take_damage(*damage_dealt);
@@ -238,7 +251,19 @@ pub fn receive_fireball_hit_result(
     game_state.animated_fireballs.clear();
 }
 
-pub fn receive_game_over(game_state: &mut GameState, winner_id: &str, loser_id: &str) {
-    log!("🏆 [RECEIVE] Game Over! Winner: {}, Loser: {}", winner_id, loser_id);
-    game_state.game_over(winner_id);
+pub fn receive_game_over(game_state: &mut GameState, winner_ids: &[String], loser_ids: &[String]) {
+    if winner_ids.len() > 1 {
+        log!("🏆 [RECEIVE] Game Over! Both players win! (Cooperative victory)");
+        // For cooperative victory, use the first winner ID for the game over screen
+        game_state.game_over(&winner_ids[0]);
+    } else if winner_ids.len() == 1 && loser_ids.len() == 1 {
+        log!("🏆 [RECEIVE] Game Over! Winner: {}, Loser: {}", winner_ids[0], loser_ids[0]);
+        game_state.game_over(&winner_ids[0]);
+    } else {
+        log!("🏆 [RECEIVE] Game Over! Winners: {:?}, Losers: {:?}", winner_ids, loser_ids);
+        // Default to first winner if available
+        if let Some(winner) = winner_ids.first() {
+            game_state.game_over(winner);
+        }
+    }
 }

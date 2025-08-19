@@ -1,6 +1,6 @@
 use turbo::*;
 use serde::{ Serialize, Deserialize };
-use crate::game::map::{ Tile, Player, PlayerId };
+use crate::game::map::{ Tile, Player, PlayerId, Monster };
 use crate::game::constants::{ MAP_SIZE, HAND_SIZE };
 use crate::game::map::board::random_tiles;
 use crate::network::ClientToServer;
@@ -15,6 +15,7 @@ pub struct GameChannel {
     pub current_turn: Option<CurrentTurn>,
     pub board_tiles: Vec<Tile>,
     pub board_players: Vec<Player>,
+    pub board_monster: Option<Monster>,
 }
 
 #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
@@ -41,6 +42,7 @@ impl os::server::channel::ChannelHandler for GameChannel {
             current_turn: None,
             board_tiles,
             board_players,
+            board_monster: None,
         }
     }
 
@@ -56,6 +58,9 @@ impl os::server::channel::ChannelHandler for GameChannel {
         if self.players.len() == 2 {
             self.current_turn_index = 0;
 
+            // Spawn the monster in the center of the board
+            self.board_monster = Some(Monster::new());
+
             // Give initial hands to both players
             let player_ids: Vec<String> = self.players.clone();
             for player_id in player_ids {
@@ -67,7 +72,8 @@ impl os::server::channel::ChannelHandler for GameChannel {
                 self.current_turn_index,
                 &mut self.current_turn,
                 &self.board_tiles,
-                &self.board_players
+                &self.board_players,
+                &self.board_monster
             );
         }
         Ok(())
@@ -83,7 +89,12 @@ impl os::server::channel::ChannelHandler for GameChannel {
         if self.players.len() < 2 {
             // Game stops if we have less than 2 players
             self.current_turn = None;
-            broadcast_board_state(&self.board_tiles, &self.board_players, &None);
+            broadcast_board_state(
+                &self.board_tiles,
+                &self.board_players,
+                &self.board_monster,
+                &None
+            );
         } else {
             // Continue game with remaining players
             if was_turn {
@@ -94,7 +105,8 @@ impl os::server::channel::ChannelHandler for GameChannel {
                 self.current_turn_index,
                 &mut self.current_turn,
                 &self.board_tiles,
-                &self.board_players
+                &self.board_players,
+                &self.board_monster
             );
         }
         Ok(())

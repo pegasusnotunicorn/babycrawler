@@ -2,7 +2,7 @@ use turbo::*;
 use borsh::BorshSerialize;
 use serde::Serialize;
 use crate::server::{ ServerToClient, CurrentTurn };
-use crate::game::map::{ Tile, Player };
+use crate::game::map::{ Tile, Player, Monster };
 use crate::game::cards::card::Card;
 
 pub fn broadcast_generic<T: Serialize + BorshSerialize>(msg: T) {
@@ -16,7 +16,8 @@ pub fn broadcast_turn(
     current_turn_index: usize,
     current_turn: &mut Option<CurrentTurn>,
     board_tiles: &[Tile],
-    board_players: &[Player]
+    board_players: &[Player],
+    board_monster: &Option<Monster>
 ) {
     if let Some(user_id) = players.get(current_turn_index) {
         // Update current_turn with the new player
@@ -25,18 +26,20 @@ pub fn broadcast_turn(
             selected_card: None,
             selected_card_index: 0,
         });
-        broadcast_board_state(board_tiles, board_players, current_turn);
+        broadcast_board_state(board_tiles, board_players, board_monster, current_turn);
     }
 }
 
 pub fn broadcast_board_state(
     board_tiles: &[Tile],
     board_players: &[Player],
+    board_monster: &Option<Monster>,
     current_turn: &Option<CurrentTurn>
 ) {
     broadcast_generic(ServerToClient::BoardState {
         tiles: board_tiles.to_vec(),
         players: board_players.to_vec(),
+        monster: board_monster.clone(),
         current_turn: current_turn.clone(),
     });
 }
@@ -90,17 +93,23 @@ pub fn broadcast_fireball_shot(
     });
 }
 
-pub fn broadcast_fireball_hit_result(shooter_id: &str, target_player_id: &str, damage_dealt: &u32) {
+pub fn broadcast_fireball_hit_result(
+    shooter_id: &str,
+    target_player_id: &str,
+    damage_dealt: &u32,
+    monster_damage: Option<u32>
+) {
     broadcast_generic(ServerToClient::FireballHit {
         player_id: shooter_id.to_string(),
         target_id: target_player_id.to_string(),
         damage_dealt: *damage_dealt,
+        monster_damage,
     });
 }
 
-pub fn broadcast_game_over(winner_id: &str, loser_id: &str) {
+pub fn broadcast_game_over(winner_ids: &[String], loser_ids: &[String]) {
     broadcast_generic(ServerToClient::GameOver {
-        winner_id: winner_id.to_string(),
-        loser_id: loser_id.to_string(),
+        winner_ids: winner_ids.to_vec(),
+        loser_ids: loser_ids.to_vec(),
     });
 }

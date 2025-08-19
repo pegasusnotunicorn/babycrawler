@@ -119,13 +119,14 @@ pub fn draw_menu(game_over: bool, frame: usize) {
 
     sprite!("title", x = title_x as i32, y = title_y as i32, w = title_width, h = title_height);
 
-    let text = "Created by Pegasus Games\n\nunicornwithwings.com";
-    let text_width = 220;
-    let text_height = 45;
-    let text_x = (canvas_width - text_width) / 2;
-    let text_y = base_y + (title_height as f32) + 20.0; // 20 pixels below the title, using base_y so it doesn't bob
-
-    draw_text_box(text_x as f32, text_y, text_width, text_height, text, 0xffffffff, 0x222222ff);
+    if !game_over {
+        let text = "Created by Pegasus Games\n\nunicornwithwings.com";
+        let text_width = 220;
+        let text_height = 45;
+        let text_x = (canvas_width - text_width) / 2;
+        let text_y = base_y + (title_height as f32) + 20.0; // 20 pixels below the title, using base_y so it doesn't bob
+        draw_text_box(text_x as f32, text_y, text_width, text_height, text, 0xffffffff, 0x222222ff);
+    }
 
     let menu_items = if game_over {
         ["Press SPACE to return to menu"]
@@ -160,12 +161,16 @@ pub fn draw_game_over_screen(winner_id: &str, current_user_id: &str, frame: usiz
 
     // Draw main game over box using draw_text_box
     let box_width = canvas_width - GAME_PADDING * 2;
-    let box_height = FONT_HEIGHT + GAME_PADDING;
+    let box_height = FONT_HEIGHT + GAME_PADDING * 2;
     let box_x = GAME_PADDING as f32;
     let box_y = (canvas_height - box_height * 2 - GAME_PADDING * 2) as f32;
 
     // Draw title
-    let title = if is_winner { "CONGRATS, YOU WON!" } else { "GAMEOVER, YOU LOST!" };
+    let title = if is_winner {
+        "CONGRATULATIONS!\n\nYOU HAVE DEFEATED THE MONSTER!"
+    } else {
+        "OH NO, GAMEOVER!\n\nYOU HAVE DIED!"
+    };
     let fill_color = if is_winner { 0x118811ff } else { 0xff2222ff };
 
     draw_text_box(

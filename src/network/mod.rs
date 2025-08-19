@@ -47,6 +47,7 @@ pub enum ServerToClient {
     BoardState {
         tiles: Vec<crate::game::map::tile::Tile>,
         players: Vec<crate::game::map::player::Player>,
+        monster: Option<crate::game::map::monster::Monster>,
         current_turn: Option<crate::server::CurrentTurn>,
     },
 
@@ -81,6 +82,7 @@ pub enum ServerToClient {
         shooter_id: String,
         target_player_id: Option<String>,
         damage_dealt: u32,
+        monster_damage: Option<u32>, // Optional monster damage if fireball hit monster
     },
     GameOver {
         winner_id: String,

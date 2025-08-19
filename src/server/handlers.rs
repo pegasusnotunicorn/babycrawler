@@ -64,7 +64,12 @@ pub fn handle_end_turn(channel: &mut GameChannel, user_id: &str) {
             selected_card_index: 0,
         });
 
-        broadcast_board_state(&channel.board_tiles, &channel.board_players, &channel.current_turn);
+        broadcast_board_state(
+            &channel.board_tiles,
+            &channel.board_players,
+            &channel.board_monster,
+            &channel.current_turn
+        );
     }
 }
 
@@ -165,7 +170,12 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
     });
 
     broadcast_card_cancelled(&card, user_id);
-    broadcast_board_state(&channel.board_tiles, &channel.board_players, &channel.current_turn);
+    broadcast_board_state(
+        &channel.board_tiles,
+        &channel.board_players,
+        &channel.board_monster,
+        &channel.current_turn
+    );
 }
 
 pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card) {
@@ -295,11 +305,41 @@ pub fn handle_fireball_hit(
     channel: &mut GameChannel,
     shooter_id: &str,
     from_tile_index: usize,
-    direction: crate::game::map::tile::Direction
+    _direction: crate::game::map::tile::Direction
 ) {
     // Convert tile index to position coordinates
     let from_position = (from_tile_index % 5, from_tile_index / 5);
-    let hit_position = calculate_fireball_hit_position(from_position, direction);
+    let hit_position = from_position;
+
+    // Find the monster at the hit position
+    if let Some(monster) = &mut channel.board_monster {
+        if monster.position == hit_position {
+            log!("[GameChannel] Fireball hit monster at {:?}", hit_position);
+            monster.take_damage(FIREBALL_DAMAGE);
+            log!(
+                "[GameChannel] Monster took {} damage, health now: {}",
+                FIREBALL_DAMAGE,
+                monster.health
+            );
+
+            // Check if monster is defeated
+            if monster.health <= 0 {
+                log!("[GameChannel] Monster defeated! Both players win!");
+                // Get both player user IDs for the victory
+                let player1_id = channel.players.get(0).cloned();
+                let player2_id = channel.players.get(1).cloned();
+
+                if let (Some(p1), Some(p2)) = (player1_id, player2_id) {
+                    broadcast_game_over(&[p1, p2], &[]); // Both players win, no losers
+                    return;
+                }
+            }
+
+            // Broadcast fireball hit result with monster damage
+            broadcast_fireball_hit_result(shooter_id, "monster", &0, Some(FIREBALL_DAMAGE));
+            return;
+        }
+    }
 
     // Find the target player at the hit position
     let (target_player_index, target_player) = match
@@ -345,7 +385,7 @@ pub fn handle_fireball_hit(
     }
 
     // Broadcast the hit result
-    broadcast_fireball_hit_result(shooter_id, &target_user_id, &damage_dealt);
+    broadcast_fireball_hit_result(shooter_id, &target_user_id, &damage_dealt, None);
 }
 
 /// Handle player death and determine winner
@@ -360,30 +400,6 @@ fn handle_player_death(channel: &mut GameChannel, dead_player_id: PlayerId) {
 
     if let (Some(winner), Some(loser)) = (winner_user_id, loser_user_id) {
         log!("[GameChannel] Player {} wins the game!", winner);
-        broadcast_game_over(winner, loser);
-    }
-}
-/// Calculate where a fireball would hit based on starting position and direction
-fn calculate_fireball_hit_position(
-    from_position: (usize, usize),
-    direction: crate::game::map::tile::Direction
-) -> (usize, usize) {
-    match direction {
-        crate::game::map::tile::Direction::Up => {
-            let new_y = from_position.1.saturating_sub(1);
-            (from_position.0, new_y)
-        }
-        crate::game::map::tile::Direction::Down => {
-            let new_y = (from_position.1 + 1).min(4);
-            (from_position.0, new_y)
-        }
-        crate::game::map::tile::Direction::Left => {
-            let new_x = from_position.0.saturating_sub(1);
-            (new_x, from_position.1)
-        }
-        crate::game::map::tile::Direction::Right => {
-            let new_x = (from_position.0 + 1).min(4);
-            (new_x, from_position.1)
-        }
+        broadcast_game_over(&[winner.clone()], &[loser.clone()]);
     }
 }

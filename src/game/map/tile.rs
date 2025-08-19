@@ -444,22 +444,22 @@ impl Tile {
 
         sprite!(sprite_name, x = x, y = y, w = tile_size, h = tile_size, rotation = final_rotation);
 
-        // if DEBUG_MODE {
-        //     // Draw entrance text (URDL) on the tile
-        //     let entrance_text = self.get_entrance_text(final_rotation);
-        //     if !entrance_text.is_empty() {
-        //         let text_x = x;
-        //         let text_y = y + (tile_size as i32) / 2;
+        if DEBUG_MODE {
+            // Draw entrance text (URDL) on the tile
+            let entrance_text = self.get_entrance_text(final_rotation);
+            if !entrance_text.is_empty() {
+                let text_x = x;
+                let text_y = y + (tile_size as i32) / 2;
 
-        //         text!(
-        //             &entrance_text,
-        //             x = text_x,
-        //             y = text_y,
-        //             font = "large",
-        //             color = 0xffffffff // White text
-        //         );
-        //     }
-        // }
+                text!(
+                    &entrance_text,
+                    x = text_x,
+                    y = text_y,
+                    font = "large",
+                    color = 0xffffffff // White text
+                );
+            }
+        }
 
         // Apply highlight effect if needed
         if should_highlight {

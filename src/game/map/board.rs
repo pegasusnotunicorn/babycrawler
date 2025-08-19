@@ -99,6 +99,11 @@ pub fn draw_board(state: &GameState, frame: f64, tile_size: u32, offset_x: u32, 
         player.draw(tile_size, offset_x, offset_y, animated_pos);
     }
 
+    // Phase 3.5: Draw monster on top of everything
+    if let Some(monster) = &state.monster {
+        monster.draw(tile_size, offset_x, offset_y, None);
+    }
+
     // Phase 4: Draw fireballs on top of everything
     for fireball in &state.fireballs {
         if fireball.is_active {

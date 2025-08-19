@@ -107,6 +107,9 @@ pub fn update_animations(state: &mut GameState) {
 
     // Update player sprite animations
     update_player_sprite_animations(state);
+
+    // Update monster sprite animations
+    update_monster_sprite_animations(state);
 }
 
 /// Generic spring-to-target function for 2D positions.
@@ -575,8 +578,35 @@ pub fn update_fireball_animations(state: &mut GameState) {
                 )
             };
 
-            let hit_wall = if player_hit.is_some() {
-                false // Player hit takes priority over wall hit
+            // Check if we hit the monster
+            let monster_hit = if let Some(monster) = &state.monster {
+                if monster.is_alive() {
+                    // Convert monster position to screen coordinates
+                    let monster_screen_x =
+                        offset_x + (monster.position.0 as u32) * tile_size + tile_size / 2;
+                    let monster_screen_y =
+                        offset_y + (monster.position.1 as u32) * tile_size + tile_size / 2;
+                    let monster_pos = (monster_screen_x as f32, monster_screen_y as f32);
+
+                    // Check if fireball hits monster (using same logic as player hit)
+                    let dx = new_pos.0 - monster_pos.0;
+                    let dy = new_pos.1 - monster_pos.1;
+                    let distance = (dx * dx + dy * dy).sqrt();
+
+                    if distance < fireball_radius + (tile_size as f32) / 4.0 {
+                        Some(monster.position)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let hit_wall = if player_hit.is_some() || monster_hit.is_some() {
+                false // Player or monster hit takes priority over wall hit
             } else {
                 let current_tile = &state.tiles[anim.current_tile_index];
 
@@ -603,7 +633,7 @@ pub fn update_fireball_animations(state: &mut GameState) {
                 }
             };
 
-            if hit_wall || player_hit.is_some() {
+            if hit_wall || player_hit.is_some() || monster_hit.is_some() {
                 if let Some(player_index) = player_hit {
                     log!(
                         "🔥 [ANIMATION] Fireball {} hit player {} at {:?}",
@@ -631,6 +661,33 @@ pub fn update_fireball_animations(state: &mut GameState) {
                         }
                     }
                 }
+
+                if let Some(monster_pos) = monster_hit {
+                    log!(
+                        "🔥 [ANIMATION] Fireball {} hit monster at {:?}",
+                        anim.fireball_id,
+                        monster_pos
+                    );
+
+                    // Send FireballHit message to server for monster damage
+                    if
+                        let Some(fireball) = state.fireballs
+                            .iter()
+                            .find(|f| f.id == anim.fireball_id)
+                    {
+                        // Check if the local player is the shooter
+                        if let Some(ref local_id) = local_player_id {
+                            if fireball.shooter_id == *local_id {
+                                send_fireball_hit(
+                                    state.user.clone(),
+                                    anim.current_tile_index,
+                                    fireball.direction
+                                );
+                            }
+                        }
+                    }
+                }
+
                 completed_indices.push(i);
                 fireballs_to_deactivate.push(anim.fireball_id);
             } else {
@@ -680,5 +737,14 @@ pub fn update_player_sprite_animations(state: &mut GameState) {
 
     for player in &mut state.players {
         player.update_animation(delta_time);
+    }
+}
+
+/// Updates monster sprite animations (walking frames, etc.)
+pub fn update_monster_sprite_animations(state: &mut GameState) {
+    let delta_time = 1.0 / 60.0; // Assuming 60 FPS
+
+    if let Some(monster) = &mut state.monster {
+        monster.update_animation(delta_time);
     }
 }
