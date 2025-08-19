@@ -192,7 +192,7 @@ impl GameState {
     }
 
     fn update_menu(&mut self) {
-        draw_menu(false);
+        draw_menu(false, self.frame);
         if gamepad::get(0).start.just_pressed() {
             self.scene = Scene::Game;
             self.user = os::client::user_id().unwrap_or_else(|| "NO_ID".to_string());
@@ -260,7 +260,7 @@ impl GameState {
 
     fn update_game_over(&mut self, winner_id: &str) {
         // Draw the game over screen using our UI function
-        draw_game_over_screen(winner_id, &self.user);
+        draw_game_over_screen(winner_id, &self.user, self.frame);
 
         // Allow players to return to menu
         if gamepad::get(0).start.just_pressed() {

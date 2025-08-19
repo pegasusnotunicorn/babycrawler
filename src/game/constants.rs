@@ -1,4 +1,4 @@
-pub const DEBUG_MODE: bool = true;
+pub const DEBUG_MODE: bool = false;
 
 // Game
 pub const MAP_SIZE: usize = 5;

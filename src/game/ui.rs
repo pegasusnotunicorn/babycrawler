@@ -103,7 +103,30 @@ pub fn draw_text(text: &str, is_my_turn: bool) {
     draw_text_box(rect_x as f32, rect_y as f32, rect_w, rect_h, text, 0xffffffff, 0x222222ff);
 }
 
-pub fn draw_menu(game_over: bool) {
+pub fn draw_menu(game_over: bool, frame: usize) {
+    // Draw the title sprite at the top center of the screen with bobbing animation
+    let canvas_bounds = bounds::screen();
+    let canvas_width = canvas_bounds.w();
+    let title_width = 360;
+    let title_height = 360;
+    let title_x = (canvas_width - title_width) / 2;
+
+    // Create bobbing animation using frame counter
+    let bob_speed = 0.01;
+    let bob_amount = 5.0;
+    let base_y = 50.0;
+    let title_y = base_y + ((frame as f32) * bob_speed).sin() * bob_amount;
+
+    sprite!("title", x = title_x as i32, y = title_y as i32, w = title_width, h = title_height);
+
+    let text = "Created by Pegasus Games\n\nunicornwithwings.com";
+    let text_width = 220;
+    let text_height = 45;
+    let text_x = (canvas_width - text_width) / 2;
+    let text_y = base_y + (title_height as f32) + 20.0; // 20 pixels below the title, using base_y so it doesn't bob
+
+    draw_text_box(text_x as f32, text_y, text_width, text_height, text, 0xffffffff, 0x222222ff);
+
     let menu_items = if game_over {
         ["Press SPACE to return to menu"]
     } else {
@@ -128,8 +151,8 @@ pub fn draw_waiting_for_players(_game_state: &crate::GameState) {
 }
 
 /// Draws the game over screen with winner/loser information
-pub fn draw_game_over_screen(winner_id: &str, current_user_id: &str) {
-    draw_menu(true);
+pub fn draw_game_over_screen(winner_id: &str, current_user_id: &str, frame: usize) {
+    draw_menu(true, frame);
     let canvas_bounds = bounds::screen();
     let canvas_width = canvas_bounds.w();
     let canvas_height = canvas_bounds.h();
