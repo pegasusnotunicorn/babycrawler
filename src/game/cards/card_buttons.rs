@@ -12,9 +12,9 @@ pub struct CardButton {
 impl CardButton {
     pub fn new(card_y: u32, card_w: u32, card_h: u32) -> Self {
         let inset = GAME_PADDING / 2;
-        let button_w = (card_w - GAME_PADDING * 2) / 2;
+        let button_w = (card_w - GAME_PADDING) / 2;
         let button_h = button_w;
-        let button_y = card_y + card_h - GAME_PADDING - button_h;
+        let button_y = card_y + card_h - inset * 3;
 
         Self {
             button_w,
@@ -25,8 +25,8 @@ impl CardButton {
     }
 
     pub fn get_button_positions(&self, card_x: u32, card_w: u32) -> [(u32, u32); 2] {
-        let button_a_x = card_x + self.inset + GAME_PADDING / 3;
-        let button_b_x = card_x + card_w - self.inset - GAME_PADDING / 3 - self.button_w;
+        let button_a_x = card_x - self.inset;
+        let button_b_x = card_x + card_w + self.inset - self.button_w;
 
         [
             (button_a_x, self.button_y),
