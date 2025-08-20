@@ -7,6 +7,8 @@ pub const HAND_SIZE: usize = 4;
 // UI
 pub const FONT_HEIGHT: u32 = 12;
 pub const GAME_PADDING: u32 = 16;
+pub const POSITIVE_BG_COLOR: u32 = 0x119911ff;
+pub const NEGATIVE_BG_COLOR: u32 = 0x991111ff;
 
 // Tile random generation
 pub const ENTRANCE_COUNT_WEIGHT_1: f32 = 1.0;

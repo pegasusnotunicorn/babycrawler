@@ -165,32 +165,62 @@ impl Monster {
 
     fn draw_hearts(&self, center_x: u32, center_y: u32, radius: u32) {
         let heart_size = 12;
-        let heart_spacing = 0;
-        let total_hearts_width = (heart_size + heart_spacing) * self.max_health - heart_spacing; // 5 hearts with spacing
-        let hearts_start_x = center_x - total_hearts_width / 2;
-        // position above the monster circle
-        let hearts_y = center_y - radius - heart_size;
+        let heart_spacing = 2;
+        let hearts_per_row = 3;
 
-        // Draw all 5 heart positions (empty hearts for missing health)
-        for i in 0..self.max_health {
-            let heart_x = hearts_start_x + (i as u32) * (heart_size + heart_spacing);
+        // Calculate how many hearts go in each row
+        let first_row_hearts = self.max_health.min(hearts_per_row);
+        let second_row_hearts = if self.max_health > hearts_per_row {
+            self.max_health - hearts_per_row
+        } else {
+            0
+        };
 
-            if i < self.health {
-                // Draw filled heart sprite
+        // Calculate total width for each row to center them
+        let first_row_width = (heart_size + heart_spacing) * first_row_hearts - heart_spacing;
+        let second_row_width = if second_row_hearts > 0 {
+            (heart_size + heart_spacing) * second_row_hearts - heart_spacing
+        } else {
+            0
+        };
+
+        let first_row_start_x = center_x - first_row_width / 2;
+        let second_row_start_x = center_x - second_row_width / 2;
+
+        // Position above the monster circle
+        let first_row_y = center_y - radius - heart_size - 1; // Top row
+        let second_row_y = center_y - radius - heart_size - heart_size; // Bottom row (if needed)
+
+        // Draw first row (up to 3 hearts)
+        for i in 0..first_row_hearts {
+            let heart_x = first_row_start_x + (i as u32) * (heart_size + heart_spacing);
+            let sprite_name = if i < self.health { "heart_monster" } else { "heart_empty" };
+
+            sprite!(
+                sprite_name,
+                x = heart_x as i32,
+                y = first_row_y as i32,
+                w = heart_size,
+                h = heart_size,
+                cover = true
+            );
+        }
+
+        // Draw second row (remaining hearts, if any)
+        if second_row_hearts > 0 {
+            for i in 0..second_row_hearts {
+                let heart_x = second_row_start_x + (i as u32) * (heart_size + heart_spacing);
+                let heart_index = i + hearts_per_row;
+                let sprite_name = if heart_index < self.health {
+                    "heart_monster"
+                } else {
+                    "heart_empty"
+                };
+
                 sprite!(
-                    "heart",
+                    sprite_name,
                     x = heart_x as i32,
-                    y = hearts_y as i32,
-                    w = heart_size,
-                    h = heart_size,
-                    cover = true
-                );
-            } else {
-                // Draw empty heart (gray outline)
-                sprite!(
-                    "heart_empty",
-                    x = heart_x as i32,
-                    y = hearts_y as i32,
+                    y = second_row_y as i32,
                     w = heart_size,
                     h = heart_size,
                     cover = true

@@ -1,6 +1,6 @@
 use turbo::*;
 
-use crate::game::constants::{ GAME_PADDING, FONT_HEIGHT };
+use crate::game::constants::{ GAME_PADDING, FONT_HEIGHT, POSITIVE_BG_COLOR, NEGATIVE_BG_COLOR };
 use crate::network::send::send_end_turn;
 
 const BUTTON_WIDTH: u32 = 100;
@@ -56,7 +56,7 @@ pub fn draw_end_turn_button() {
 
     // when hovered, the fill color should be black
     // otherwise normally fill color is light red
-    let mut fill_color = 0x600000ff;
+    let mut fill_color = NEGATIVE_BG_COLOR;
     let pointer = mouse::screen();
     let button_bounds = turbo::Bounds::new(button_x, button_y, BUTTON_WIDTH, button_height);
     let pointer_bounds = turbo::Bounds::new(pointer.x as u32, pointer.y as u32, 1, 1);
@@ -81,7 +81,6 @@ pub fn draw_end_turn_button() {
     }
 }
 
-/// Draws a message centered above the hand, in the same location as the turn label.
 pub fn draw_text(text: &str, is_my_turn: bool) {
     let canvas_bounds = bounds::screen();
     let canvas_width = canvas_bounds.w();
@@ -139,8 +138,20 @@ pub fn draw_menu(game_over: bool, frame: usize) {
 }
 
 pub fn draw_turn_label(is_my_turn: bool, _game_state: &crate::GameState) {
+    let canvas_bounds = bounds::screen();
+    let canvas_width = canvas_bounds.w();
+    let canvas_height = canvas_bounds.h();
     let turn_label = if is_my_turn { "It's your turn!" } else { "Please wait for your turn..." };
     draw_text(turn_label, is_my_turn);
+    draw_text_box(
+        GAME_PADDING as f32,
+        (canvas_height - FONT_HEIGHT * 2 - GAME_PADDING * 4) as f32,
+        canvas_width - GAME_PADDING * 2,
+        FONT_HEIGHT + GAME_PADDING,
+        "Kill the monster to win!",
+        0xffffffff,
+        POSITIVE_BG_COLOR
+    );
     if is_my_turn {
         draw_end_turn_button();
     }
@@ -167,10 +178,10 @@ pub fn draw_game_over_screen(winner_ids: &[String], loser_ids: &[String], frame:
     // Determine title and color based on game outcome
     let (title, fill_color) = if !winner_ids.is_empty() && loser_ids.is_empty() {
         // Cooperative victory (both players win)
-        ("VICTORY!\n\nYou defeated the monster together!", 0x118811ff)
+        ("VICTORY!\n\nYou defeated the monster together!", POSITIVE_BG_COLOR)
     } else if winner_ids.is_empty() && !loser_ids.is_empty() {
         // Cooperative loss (both players lose)
-        ("DEFEAT\n\nYou were defeated by the monster", 0xff2222ff)
+        ("DEFEAT\n\nYou were defeated by the monster", NEGATIVE_BG_COLOR)
     } else {
         // Fallback for unexpected states
         ("GAME OVER", 0x888888ff)
