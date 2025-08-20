@@ -225,7 +225,7 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
         selected_card_index: hand_index,
     });
 
-    broadcast_card_cancelled(&card, user_id);
+    broadcast_card_cancelled(&card, user_id, &channel.board_tiles);
 }
 
 pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card) {

@@ -24,6 +24,7 @@ pub enum ServerToClient {
     CardCancelled {
         player_id: String,
         card: Card,
+        board_tiles: Vec<Tile>,
     },
     CardConfirmed {
         player_id: String,

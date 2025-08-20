@@ -48,10 +48,11 @@ pub fn broadcast_board_state(
     });
 }
 
-pub fn broadcast_card_cancelled(card: &Card, player_id: &str) {
+pub fn broadcast_card_cancelled(card: &Card, player_id: &str, board_tiles: &[Tile]) {
     broadcast_generic(ServerToClient::CardCancelled {
         card: card.clone(),
         player_id: player_id.to_string(),
+        board_tiles: board_tiles.to_vec(),
     });
 }
 

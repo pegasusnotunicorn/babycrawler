@@ -71,7 +71,12 @@ pub fn receive_board_state(
     game_state.current_turn = current_turn.clone();
 }
 
-pub fn receive_card_cancelled(game_state: &mut GameState, card: &Card, player_id: &str) {
+pub fn receive_card_cancelled(
+    game_state: &mut GameState,
+    card: &Card,
+    player_id: &str,
+    board_tiles: &[Tile]
+) {
     log!(
         "📨 [RECEIVE] Card cancelled by {}: {:?}, hand_index: {:?}",
         player_id,
@@ -81,8 +86,10 @@ pub fn receive_card_cancelled(game_state: &mut GameState, card: &Card, player_id
 
     if game_state.user == player_id {
         game_state.selected_card = None;
-        clear_highlights(&mut game_state.tiles);
     }
+
+    clear_highlights(&mut game_state.tiles);
+    game_state.tiles = board_tiles.to_vec();
 }
 
 pub fn receive_tile_rotation(

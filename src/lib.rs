@@ -230,8 +230,8 @@ impl GameState {
                         receive_board_state(self, tiles, players, monster, current_turn);
                     }
 
-                    ServerToClient::CardCancelled { card, player_id } => {
-                        receive_card_cancelled(self, &card, &player_id);
+                    ServerToClient::CardCancelled { card, player_id, board_tiles } => {
+                        receive_card_cancelled(self, &card, &player_id, &board_tiles);
                     }
 
                     ServerToClient::CardConfirmed { card, player_id } => {
