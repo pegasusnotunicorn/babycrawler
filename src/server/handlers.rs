@@ -226,12 +226,6 @@ pub fn handle_cancel_select_card(channel: &mut GameChannel, user_id: &str, hand_
     });
 
     broadcast_card_cancelled(&card, user_id);
-    broadcast_board_state(
-        &channel.board_tiles,
-        &channel.board_players,
-        &channel.board_monster,
-        &channel.current_turn
-    );
 }
 
 pub fn handle_confirm_card(channel: &mut GameChannel, user_id: &str, card: Card) {

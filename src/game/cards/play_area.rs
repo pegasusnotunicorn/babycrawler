@@ -2,7 +2,7 @@ use crate::game::cards::hand::{ get_card_sizes, get_hand_y };
 use crate::GameState;
 use crate::game::cards::card_row::CardRow;
 use crate::game::constants::{ GAME_PADDING, CARD_DUMMY_COLOR };
-use crate::game::util::rects_intersect_outline_to_inner;
+
 use turbo::mouse;
 use crate::game::cards::card::{ Card, CardVisualState };
 use crate::game::cards::card_buttons::{ draw_card_buttons, should_show_buttons };
@@ -20,32 +20,8 @@ pub fn draw_play_area(state: &GameState, frame: f64) {
     let (card_width, card_height) = get_card_sizes(canvas_width, canvas_height);
     let y = get_hand_y() + card_height + GAME_PADDING;
 
-    let mut play_area_row = CardRow::new(&state.play_area, y, card_width, card_height);
+    let play_area_row = CardRow::new(&state.play_area, y, card_width, card_height);
 
-    // Highlight leftmost empty slot if dragging from hand
-    if let Some(drag) = &state.animated_card {
-        if drag.dragging {
-            if let Some(idx) = play_area_row.leftmost_card_index(true) {
-                let (slot_x, slot_y) = play_area_row.get_slot_position(idx);
-                let border_width = GAME_PADDING;
-                if
-                    rects_intersect_outline_to_inner(
-                        slot_x,
-                        slot_y,
-                        card_width,
-                        card_height,
-                        drag.pos.0 as u32,
-                        drag.pos.1 as u32,
-                        card_width,
-                        card_height,
-                        border_width
-                    )
-                {
-                    play_area_row.slots[idx].visual_state |= CardVisualState::HOVERED;
-                }
-            }
-        }
-    }
     let pointer = mouse::screen();
     let pointer_xy = (pointer.x, pointer.y);
 

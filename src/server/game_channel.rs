@@ -8,7 +8,7 @@ use crate::game::cards::card::Card;
 use crate::server::broadcast::{ broadcast_generic, broadcast_turn, broadcast_board_state };
 use crate::server::handlers::*;
 
-#[turbo::os::channel(program = "game_server", name = "game")]
+#[turbo::os::channel(program = "server", name = "game")]
 pub struct GameChannel {
     pub players: Vec<String>,
     pub current_turn_index: usize,

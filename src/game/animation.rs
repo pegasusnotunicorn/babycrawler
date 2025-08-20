@@ -104,11 +104,7 @@ pub fn update_animations(state: &mut GameState) {
     update_player_movement_animations(state);
     update_tile_animations(state);
     update_fireball_animations(state);
-
-    // Update player sprite animations
     update_player_sprite_animations(state);
-
-    // Update monster sprite animations
     update_monster_sprite_animations(state);
 }
 

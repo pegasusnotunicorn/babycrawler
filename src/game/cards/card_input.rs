@@ -4,7 +4,7 @@ use crate::game::cards::card_buttons::CardButton;
 use crate::game::cards::CardRow;
 use crate::game::constants::*;
 use crate::game::cards::{ get_hand_y, get_card_sizes };
-use crate::game::util::rects_intersect_outline_to_inner;
+
 use turbo::*;
 use crate::game::cards::card_effect::CardEffect;
 use crate::game::animation::{ highlight_selected_card_tiles, AnimatedCardOrigin, AnimatedCard };
@@ -22,34 +22,6 @@ fn get_hand_slot_pos(hand_row: &CardRow, idx: usize) -> (f32, f32) {
 fn get_play_area_slot_pos(play_area_row: &CardRow, idx: usize) -> (f32, f32) {
     let (x, y) = play_area_row.get_slot_position(idx);
     (x as f32, y as f32)
-}
-
-fn play_area_intersect(
-    play_area_row: &CardRow,
-    card_width: u32,
-    card_height: u32,
-    pos: (f32, f32)
-) -> Option<usize> {
-    if let Some(idx) = play_area_row.leftmost_card_index(true) {
-        let (slot_x, slot_y) = play_area_row.get_slot_position(idx);
-        let border_width = GAME_PADDING;
-        if
-            rects_intersect_outline_to_inner(
-                slot_x,
-                slot_y,
-                card_width,
-                card_height,
-                pos.0 as u32,
-                pos.1 as u32,
-                card_width,
-                card_height,
-                border_width
-            )
-        {
-            return Some(idx);
-        }
-    }
-    None
 }
 
 fn get_hand_row(state: &GameState) -> CardRow {
@@ -72,84 +44,59 @@ fn get_play_area_row(state: &GameState) -> CardRow {
 
 // #endregion
 
-pub fn handle_card_drag(
+pub fn handle_card_click(
     state: &mut GameState,
     pointer: &mouse::ScreenMouse,
     pointer_xy: (i32, i32)
 ) {
-    let selected_card = state.selected_card.clone();
     let hand_row = get_hand_row(state);
     let hand_slot_at_point = hand_row.slot_at_point(pointer_xy.0, pointer_xy.1);
     let play_area_row = get_play_area_row(state);
 
-    let mut dragged = state.animated_card.take();
+    // Only handle clicks if no card is currently animating
+    if state.animated_card.is_some() {
+        return;
+    }
+
     if let Some(player) = state.get_local_player_mut() {
-        // Only allow a new drag if no card is being dragged or animating
-        let can_start_drag = dragged.as_ref().map_or(true, |d| !d.dragging && !d.animating);
-        // Start drag from hand
-        if selected_card.is_none() && can_start_drag {
-            if let Some(idx) = hand_slot_at_point {
-                if pointer.left.just_pressed() {
-                    let hand_has_card = player.hand.get(idx).is_some();
-                    if hand_has_card {
-                        let card = player.hand[idx].clone();
-                        if card.is_dummy() {
-                            return; // Don't allow dragging dummy cards
-                        }
+        // Handle click on hand card
+        if let Some(idx) = hand_slot_at_point {
+            if pointer.left.just_pressed() {
+                let hand_has_card = player.hand.get(idx).is_some();
+                if hand_has_card {
+                    let card = player.hand[idx].clone();
+                    if card.is_dummy() {
+                        return; // Don't allow clicking dummy cards
+                    }
+
+                    // Find the leftmost available slot in play area
+                    if let Some(play_area_idx) = play_area_row.leftmost_card_index(true) {
+                        // Remove card from hand and replace with dummy
                         player.hand[idx] = Card::dummy_card();
+
+                        // Get positions for animation
                         let origin_pos = get_hand_slot_pos(&hand_row, idx);
-                        dragged = Some(AnimatedCard {
+                        let target_pos = get_play_area_slot_pos(&play_area_row, play_area_idx);
+
+                        // Set up animation to play area
+                        state.animated_card = Some(AnimatedCard {
                             card: card.clone(),
                             pos: origin_pos,
                             velocity: (0.0, 0.0),
                             origin_row: AnimatedCardOrigin::Hand,
                             origin_row_index: idx,
                             origin_pos,
-                            target_row: AnimatedCardOrigin::Hand,
-                            target_row_index: idx,
-                            target_pos: origin_pos,
-                            dragging: true,
-                            animating: false,
+                            target_row: AnimatedCardOrigin::PlayArea,
+                            target_row_index: play_area_idx,
+                            target_pos,
+                            dragging: false,
+                            animating: true,
                         });
                     }
                 }
             }
         }
-
-        // Drag update
-        if let Some(drag) = &mut dragged {
-            if drag.dragging && pointer.left.pressed() && !drag.animating {
-                let new_x = (pointer_xy.0 - ((hand_row.card_width / 2) as i32)) as f32;
-                let new_y = (pointer_xy.1 - ((hand_row.card_height / 2) as i32)) as f32;
-                drag.pos = (new_x, new_y);
-                drag.target_pos = (new_x, new_y);
-            }
-
-            // On release, check for valid drop
-            if drag.dragging && pointer.left.just_released() {
-                drag.dragging = false;
-                // Check if released over play area
-                let w = play_area_row.card_width;
-                let h = play_area_row.card_height;
-                if let Some(idx) = play_area_intersect(&play_area_row, w, h, drag.pos) {
-                    let target_pos = get_play_area_slot_pos(&play_area_row, idx);
-                    drag.target_pos = target_pos;
-                    drag.target_row = AnimatedCardOrigin::PlayArea;
-                    drag.target_row_index = idx;
-                    drag.animating = true;
-                } else {
-                    // Animate back to hand slot (original index)
-                    let target_pos = get_hand_slot_pos(&hand_row, drag.origin_row_index);
-                    drag.target_pos = target_pos;
-                    drag.target_row = AnimatedCardOrigin::Hand;
-                    drag.target_row_index = drag.origin_row_index;
-                    drag.animating = true;
-                }
-            }
-        }
     }
-    // Put drag state back
-    state.animated_card = dragged;
 }
 
 pub fn handle_play_area_buttons(state: &mut GameState, pointer: &mouse::ScreenMouse) {

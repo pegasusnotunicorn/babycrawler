@@ -165,7 +165,10 @@ impl Tile {
         visited.insert(start_index);
 
         while let Some(current_index) = to_visit.pop() {
-            reachable.push(current_index);
+            // Don't add the start tile to reachable tiles
+            if current_index != start_index {
+                reachable.push(current_index);
+            }
 
             let current_tile = &tiles[current_index];
             let (cx, cy) = Tile::position(current_index);
